@@ -93,6 +93,25 @@ async function ConfigForm() {
                 />
             </div>
 
+            {/* Lime Integration */}
+            <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 space-y-6">
+                <div>
+                    <h4 className="font-medium text-white mb-4 text-lime-400">Lime Integration</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Lime List ID</label>
+                            <input
+                                type="text"
+                                name="limeListId"
+                                defaultValue={config.limeListId || '135859'}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-lime-500 outline-none font-mono"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">The List ID in Lime Cellular to sync subscribers from.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* WSWD Settings */}
             <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 space-y-6">
                 <div>

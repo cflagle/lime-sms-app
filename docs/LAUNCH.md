@@ -65,7 +65,7 @@ We should not put secrets in `cloudbuild.yaml` or `.env` files committed to git.
     ```bash
     # Database URL
     # Format: postgresql://USER:PASSWORD@/DB_NAME?host=/cloudsql/CONNECTION_NAME
-    echo -n "postgresql://postgres:YOUR_SECURE_PASSWORD@/lime_sms_db?host=/cloudsql/project-id:us-central1:lime-db-prod" | \
+    echo -n "postgresql://postgres:YOUR_SECURE_PASSWORD@localhost/lime_sms_db?host=/cloudsql/lime-sms-app:us-central1:lime-db-prod" | \
     gcloud secrets create DATABASE_URL --data-file=-
 
     # App Secrets
@@ -108,15 +108,15 @@ You can do this via the GCP Console or CLI *after* the first deployment fails (o
 ```bash
 # Web App
 gcloud run deploy lime-sms-web \
-  --image gcr.io/PROJECT_ID/lime-sms-app \
-  --add-cloudsql-instances project-id:us-central1:lime-db-prod \
+  --image gcr.io/lime-sms-app/lime-sms-app \
+  --add-cloudsql-instances lime-sms-app:us-central1:lime-db-prod \
   --set-secrets="DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest" \
   --region us-central1
 
 # Worker
 gcloud run deploy lime-sms-worker \
-  --image gcr.io/PROJECT_ID/lime-sms-app \
-  --add-cloudsql-instances project-id:us-central1:lime-db-prod \
+  --image gcr.io/lime-sms-app/lime-sms-app \
+  --add-cloudsql-instances lime-sms-app:us-central1:lime-db-prod \
   --set-secrets="DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest" \
   --region us-central1
 ```
@@ -130,11 +130,11 @@ Run from your local machine (requires connection to Cloud SQL via proxy) or use 
 ```bash
 # Easiest: Run a one-off job
 gcloud run jobs create migrate-db \
-  --image gcr.io/PROJECT_ID/lime-sms-app \
+  --image gcr.io/lime-sms-app/lime-sms-app \
   --command "npx" \
-  --args "prisma,migrate,deploy" \
+  --args "prisma,db,push,--accept-data-loss" \
   --set-secrets="DATABASE_URL=DATABASE_URL:latest" \
-  --add-cloudsql-instances project-id:us-central1:lime-db-prod \
+  --add-cloudsql-instances lime-sms-app:us-central1:lime-db-prod \
   --region us-central1
 
 gcloud run jobs execute migrate-db --region us-central1

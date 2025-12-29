@@ -30,9 +30,24 @@ npm install
 
 # Push the schema to your local database
 npx prisma db push
-# OR if you are strictly using migrations
-npx prisma migrate dev
 ```
+
+### 1.1 Syncing Production Data (Optional)
+If you want your local DB to look exactly like Production (users, messages, etc.):
+
+1.  **Install Cloud SQL Proxy** (if you haven't yet).
+2.  **Start Proxy**:
+    ```bash
+    cloud_sql_proxy -instances=lime-sms-app:us-central1:lime-db-prod=tcp:5433
+    ```
+3.  **Dump & Restore**:
+    ```bash
+    # Dump Prod (requires pg_dump installed)
+    pg_dump -h localhost -p 5433 -U postgres lime_sms_db > prod_dump.sql
+    
+    # Restore to Local Docker (port 5432)
+    psql -h localhost -p 5432 -U postgres -d lime_sms_db < prod_dump.sql
+    ```
 
 ## 2. Making Database Changes
 
