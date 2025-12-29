@@ -1,0 +1,52 @@
+steps:
+  # 1. Build Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/lime-sms-app', '.']
+
+  # 2. Push Docker Image to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/lime-sms-app']
+
+  # 3. Deploy Web App (Next.js) -> Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'lime-sms-web'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/lime-sms-app'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3000'
+      # Secrets should be mounted here in production, but for MVP we assume env vars set in UI
+
+  # 4. Deploy Sidecar Worker (Same image, different command) -> Cloud Run
+  # Cloud Run services shut down when not processing requests, so running a "worker" 
+  # strictly as a separate service works BEST if min-instances is set to 1.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'lime-sms-worker'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/lime-sms-app'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--no-allow-unauthenticated' # Worker doesn't need external access
+      - '--command'
+      - 'npm'
+      - '--args'
+      - 'run,worker'
+      - '--min-instances' # Keep at least 1 alive to run cron
+      - '1'
+
+images:
+  - 'gcr.io/$PROJECT_ID/lime-sms-app'

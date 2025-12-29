@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Subscriber {
+  id              Int       @id @default(autoincrement())
+  phone           String    @unique
+  name            String?
+  email           String?
+  subscribe_wswd  Boolean   @default(false)
+  subscribe_ta    Boolean   @default(false)
+  status          String    @default("ACTIVE") // ACTIVE, OPTOUT
+  last_engagement DateTime?
+  timezone        String?   // e.g. "America/New_York"
+
+  // Behavioral Tracking
+  hasClicked      Boolean   @default(false)
+  hasPurchased    Boolean   @default(false)
+  firstClickAt    DateTime?
+  firstPurchaseAt DateTime?
+  totalClicks     Int       @default(0)
+  totalPurchases  Int       @default(0)
+  totalRevenue    Float     @default(0)
+  
+  // Segmentation Data
+  firstName       String?
+  lastName        String?
+  lastPurchaseAt  DateTime?
+  
+  // Acquisition Attribution
+  acq_source      String?
+  acq_campaign    String?
+  acq_medium      String?
+  acq_term        String?
+  acq_content     String?
+
+  // Enrichment Data
+  form_title      String?
+  traits          String?   // JSON stringified
+
+  sentLogs        SentLog[]
+  trackingEvents  TrackingEvent[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Segment {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  rules       String   // JSON string defining targeting rules
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Campaign {
+  id                  Int       @id @default(autoincrement())
+  name                String    @unique
+  maxImpressionsPerWeek Int     @default(2) 
+  
+  messages            Message[]
+  createdAt           DateTime  @default(now())
+}
+
+model Message {
+  id            Int       @id @default(autoincrement())
+  name          String    @unique  // Required, unique, immutable after creation
+  content       String
+  brand         String    // "WSWD" or "TA"
+  active        Boolean   @default(true)
+  
+  campaign      Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId    Int?
+
+  // Pacing/Limits
+  cooldownDays  Int       @default(14)
+  
+  sentLogs        SentLog[]
+  trackingEvents  TrackingEvent[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model SentLog {
+  id            Int       @id @default(autoincrement())
+  subscriber    Subscriber @relation(fields: [subscriberId], references: [id])
+  subscriberId  Int
+  message       Message   @relation(fields: [messageId], references: [id])
+  messageId     Int
+  brand         String
+  sentAt        DateTime  @default(now())
+}
+
+model TrackingEvent {
+  id                  Int       @id @default(autoincrement())
+  
+  eventType           String    // "CLICK", "PURCHASE", etc.
+  
+  // Attribution
+  publisher           String?
+  offer               String?
+  trafficSource       String?
+  landingPage         String?
+  trafficSourceAccount String?
+  
+  utmSource           String?
+  utmMedium           String?
+  utmTerm             String?
+  utmContent          String?
+  utmCampaign         String?
+  
+  keyword             String?   // t202kw
+  gclid               String?
+  
+  email               String?
+  
+  // Financial
+  revenue             Float?
+
+  // Relation to Subscriber (Optional - if matched)
+  subscriber          Subscriber? @relation(fields: [subscriberId], references: [id])
+  subscriberId        Int?
+
+  // Relation to Message (Optional - resolved from keyword)
+  message             Message?    @relation(fields: [messageId], references: [id])
+  messageId           Int?
+
+  createdAt           DateTime  @default(now())
+}
+
+model AppConfig {
+  id             Int     @id @default(1)
+  sendingEnabled Boolean @default(false)
+  testMode       Boolean @default(true)
+  testNumbers    String  @default("") // Comma separated numbers
+  batchSize      Int     @default(50)
+  
+  // Compliance Settings
+  dailyLimitPerUser       Int     @default(2)
+  engagementWindowEnabled Boolean @default(true)
+  engagementWindowDays    Int     @default(90)
+  
+  // Scheduled Sending
+  sendTimes               String  @default("") // DEPRECATED: Comma separated "09:00,12:00"
+  minIntervalMinutes      Int     @default(0)  // Minimum minutes between messages
+
+  // Brand Specific Settings
+  dailyLimitWSWD          Int     @default(2)
+  dailyLimitTA            Int     @default(2)
+  sendTimesWSWD           String  @default("") 
+  sendTimesTA             String  @default("")
+
+  // Scaling & Safety
+  limeListId              String  @default("135859")
+  globalDailyCap          Int     @default(0) // 0 = Unlimited
+  dryRunMode              Boolean @default(false)
+  
+  activeSegmentId         Int?    // If set, only send to this segment
+}

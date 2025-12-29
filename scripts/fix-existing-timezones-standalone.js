@@ -1,0 +1,406 @@
+
+const { PrismaClient } = require('@prisma/client');
+const { parsePhoneNumber } = require('libphonenumber-js');
+
+const prisma = new PrismaClient();
+
+const AREA_CODE_TIMEZONES = {
+    // US & Canada Area Codes
+    '201': 'America/New_York', // NJ
+    '202': 'America/New_York', // DC
+    '203': 'America/New_York', // CT
+    '204': 'America/Winnipeg', // MB
+    '205': 'America/Chicago',  // AL
+    '206': 'America/Los_Angeles', // WA
+    '207': 'America/New_York', // ME
+    '208': 'America/Boise',    // ID
+    '209': 'America/Los_Angeles', // CA
+    '210': 'America/Chicago',  // TX
+    '212': 'America/New_York', // NY
+    '213': 'America/Los_Angeles', // CA
+    '214': 'America/Chicago',  // TX
+    '215': 'America/New_York', // PA
+    '216': 'America/New_York', // OH
+    '217': 'America/Chicago',  // IL
+    '218': 'America/Chicago',  // MN
+    '219': 'America/Chicago',  // IN
+    '220': 'America/New_York', // OH
+    '224': 'America/Chicago',  // IL
+    '225': 'America/Chicago',  // LA
+    '226': 'America/Toronto',  // ON
+    '228': 'America/Chicago',  // MS
+    '229': 'America/New_York', // GA
+    '231': 'America/Detroit',  // MI
+    '234': 'America/New_York', // OH
+    '236': 'America/Vancouver', // BC
+    '239': 'America/New_York', // FL
+    '240': 'America/New_York', // MD
+    '248': 'America/Detroit',  // MI
+    '249': 'America/Toronto',  // ON
+    '250': 'America/Vancouver', // BC
+    '251': 'America/Chicago',  // AL
+    '252': 'America/New_York', // NC
+    '253': 'America/Los_Angeles', // WA
+    '254': 'America/Chicago',  // TX
+    '256': 'America/Chicago',  // AL
+    '260': 'America/New_York', // IN (Eastern)
+    '262': 'America/Chicago',  // WI
+    '267': 'America/New_York', // PA
+    '269': 'America/Detroit',  // MI
+    '270': 'America/Chicago',  // KY (Central)
+    '272': 'America/New_York', // PA
+    '276': 'America/New_York', // VA
+    '279': 'America/Los_Angeles', // CA
+    '281': 'America/Chicago',  // TX
+    '289': 'America/Toronto',  // ON
+    '301': 'America/New_York', // MD
+    '302': 'America/New_York', // DE
+    '303': 'America/Denver',   // CO
+    '304': 'America/New_York', // WV
+    '305': 'America/New_York', // FL
+    '306': 'America/Regina',   // SK
+    '307': 'America/Denver',   // WY
+    '308': 'America/Chicago',  // NE
+    '309': 'America/Chicago',  // IL
+    '310': 'America/Los_Angeles', // CA
+    '312': 'America/Chicago',  // IL
+    '313': 'America/Detroit',  // MI
+    '314': 'America/Chicago',  // MO
+    '315': 'America/New_York', // NY
+    '316': 'America/Chicago',  // KS
+    '317': 'America/New_York', // IN
+    '318': 'America/Chicago',  // LA
+    '319': 'America/Chicago',  // IA
+    '320': 'America/Chicago',  // MN
+    '321': 'America/New_York', // FL
+    '323': 'America/Los_Angeles', // CA
+    '325': 'America/Chicago',  // TX
+    '330': 'America/New_York', // OH
+    '331': 'America/Chicago',  // IL
+    '334': 'America/Chicago',  // AL
+    '336': 'America/New_York', // NC
+    '337': 'America/Chicago',  // LA
+    '339': 'America/New_York', // MA
+    '341': 'America/Los_Angeles', // CA
+    '343': 'America/Toronto',  // ON
+    '346': 'America/Chicago',  // TX
+    '347': 'America/New_York', // NY
+    '351': 'America/New_York', // MA
+    '352': 'America/New_York', // FL
+    '360': 'America/Los_Angeles', // WA
+    '361': 'America/Chicago',  // TX
+    '364': 'America/Chicago',  // KY
+    '365': 'America/Toronto',  // ON
+    '380': 'America/New_York', // OH
+    '385': 'America/Denver',   // UT
+    '386': 'America/New_York', // FL
+    '401': 'America/New_York', // RI
+    '402': 'America/Chicago',  // NE
+    '403': 'America/Edmonton', // AB
+    '404': 'America/New_York', // GA
+    '405': 'America/Chicago',  // OK
+    '406': 'America/Denver',   // MT
+    '407': 'America/New_York', // FL
+    '408': 'America/Los_Angeles', // CA
+    '409': 'America/Chicago',  // TX
+    '410': 'America/New_York', // MD
+    '412': 'America/New_York', // PA
+    '413': 'America/New_York', // MA
+    '414': 'America/Chicago',  // WI
+    '415': 'America/Los_Angeles', // CA
+    '416': 'America/Toronto',  // ON
+    '417': 'America/Chicago',  // MO
+    '418': 'America/Toronto', // QC
+    '419': 'America/New_York', // OH
+    '423': 'America/New_York', // TN
+    '424': 'America/Los_Angeles', // CA
+    '425': 'America/Los_Angeles', // WA
+    '430': 'America/Chicago',  // TX
+    '431': 'America/Winnipeg', // MB
+    '432': 'America/Chicago',  // TX
+    '434': 'America/New_York', // VA
+    '435': 'America/Denver',   // UT
+    '437': 'America/Toronto',  // ON
+    '438': 'America/Toronto', // QC
+    '440': 'America/New_York', // OH
+    '442': 'America/Los_Angeles', // CA
+    '443': 'America/New_York', // MD
+    '450': 'America/Toronto', // QC
+    '458': 'America/Los_Angeles', // OR
+    '469': 'America/Chicago',  // TX
+    '470': 'America/New_York', // GA
+    '475': 'America/New_York', // CT
+    '478': 'America/New_York', // GA
+    '479': 'America/Chicago',  // AR
+    '480': 'America/Phoenix',  // AZ
+    '484': 'America/New_York', // PA
+    '501': 'America/Chicago',  // AR
+    '502': 'America/New_York', // KY
+    '503': 'America/Los_Angeles', // OR
+    '504': 'America/Chicago',  // LA
+    '505': 'America/Denver',   // NM
+    '506': 'America/Halifax',  // NB
+    '507': 'America/Chicago',  // MN
+    '508': 'America/New_York', // MA
+    '509': 'America/Los_Angeles', // WA
+    '510': 'America/Los_Angeles', // CA
+    '512': 'America/Chicago',  // TX
+    '513': 'America/New_York', // OH
+    '514': 'America/Toronto', // QC
+    '515': 'America/Chicago',  // IA
+    '516': 'America/New_York', // NY
+    '517': 'America/Detroit',  // MI
+    '518': 'America/New_York', // NY
+    '519': 'America/Toronto',  // ON
+    '520': 'America/Phoenix',  // AZ
+    '530': 'America/Los_Angeles', // CA
+    '531': 'America/Chicago',  // NE
+    '534': 'America/Chicago',  // WI
+    '539': 'America/Chicago',  // OK
+    '540': 'America/New_York', // VA
+    '541': 'America/Los_Angeles', // OR
+    '551': 'America/New_York', // NJ
+    '555': 'America/New_York', // Fake
+    '559': 'America/Los_Angeles', // CA
+    '561': 'America/New_York', // FL
+    '562': 'America/Los_Angeles', // CA
+    '563': 'America/Chicago',  // IA
+    '564': 'America/Los_Angeles', // WA
+    '567': 'America/New_York', // OH
+    '570': 'America/New_York', // PA
+    '571': 'America/New_York', // VA
+    '573': 'America/Chicago',  // MO
+    '574': 'America/New_York', // IN
+    '575': 'America/Denver',   // NM
+    '579': 'America/Toronto', // QC
+    '580': 'America/Chicago',  // OK
+    '581': 'America/Toronto', // QC
+    '585': 'America/New_York', // NY
+    '586': 'America/Detroit',  // MI
+    '587': 'America/Edmonton', // AB
+    '601': 'America/Chicago',  // MS
+    '602': 'America/Phoenix',  // AZ
+    '603': 'America/New_York', // NH
+    '604': 'America/Vancouver', // BC
+    '605': 'America/Chicago',  // SD
+    '606': 'America/New_York', // KY
+    '607': 'America/New_York', // NY
+    '608': 'America/Chicago',  // WI
+    '609': 'America/New_York', // NJ
+    '610': 'America/New_York', // PA
+    '612': 'America/Chicago',  // MN
+    '613': 'America/Toronto',  // ON
+    '614': 'America/New_York', // OH
+    '615': 'America/Chicago',  // TN
+    '616': 'America/Detroit',  // MI
+    '617': 'America/New_York', // MA
+    '618': 'America/Chicago',  // IL
+    '619': 'America/Los_Angeles', // CA
+    '620': 'America/Chicago',  // KS
+    '623': 'America/Phoenix',  // AZ
+    '626': 'America/Los_Angeles', // CA
+    '628': 'America/Los_Angeles', // CA
+    '629': 'America/Chicago',  // TN
+    '630': 'America/Chicago',  // IL
+    '631': 'America/New_York', // NY
+    '636': 'America/Chicago',  // MO
+    '639': 'America/Regina',   // SK
+    '641': 'America/Chicago',  // IA
+    '646': 'America/New_York', // NY
+    '647': 'America/Toronto',  // ON
+    '650': 'America/Los_Angeles', // CA
+    '651': 'America/Chicago',  // MN
+    '657': 'America/Los_Angeles', // CA
+    '660': 'America/Chicago',  // MO
+    '661': 'America/Los_Angeles', // CA
+    '662': 'America/Chicago',  // MS
+    '667': 'America/New_York', // MD
+    '669': 'America/Los_Angeles', // CA
+    '670': 'Pacific/Saipan',   // MP
+    '671': 'Pacific/Guam',     // GU
+    '678': 'America/New_York', // GA
+    '679': 'America/Detroit',  // MI
+    '681': 'America/New_York', // WV
+    '682': 'America/Chicago',  // TX
+    '701': 'America/Chicago',  // ND
+    '702': 'America/Los_Angeles', // NV
+    '703': 'America/New_York', // VA
+    '704': 'America/New_York', // NC
+    '705': 'America/Toronto',  // ON
+    '706': 'America/New_York', // GA
+    '707': 'America/Los_Angeles', // CA
+    '708': 'America/Chicago',  // IL
+    '709': 'America/St_Johns', // NL
+    '712': 'America/Chicago',  // IA
+    '713': 'America/Chicago',  // TX
+    '714': 'America/Los_Angeles', // CA
+    '715': 'America/Chicago',  // WI
+    '716': 'America/New_York', // NY
+    '717': 'America/New_York', // PA
+    '718': 'America/New_York', // NY
+    '719': 'America/Denver',   // CO
+    '720': 'America/Denver',   // CO
+    '724': 'America/New_York', // PA
+    '725': 'America/Los_Angeles', // NV
+    '727': 'America/New_York', // FL
+    '731': 'America/Chicago',  // TN
+    '732': 'America/New_York', // NJ
+    '734': 'America/Detroit',  // MI
+    '737': 'America/Chicago',  // TX
+    '740': 'America/New_York', // OH
+    '747': 'America/Los_Angeles', // CA
+    '754': 'America/New_York', // FL
+    '757': 'America/New_York', // VA
+    '760': 'America/Los_Angeles', // CA
+    '762': 'America/New_York', // GA
+    '765': 'America/New_York', // IN
+    '769': 'America/Chicago',  // MS
+    '770': 'America/New_York', // GA
+    '772': 'America/New_York', // FL
+    '773': 'America/Chicago',  // IL
+    '774': 'America/New_York', // MA
+    '775': 'America/Los_Angeles', // NV
+    '778': 'America/Vancouver', // BC
+    '779': 'America/Chicago',  // IL
+    '780': 'America/Edmonton', // AB
+    '781': 'America/New_York', // MA
+    '782': 'America/Halifax',  // NS/PE
+    '785': 'America/Chicago',  // KS
+    '786': 'America/New_York', // FL
+    '787': 'America/Puerto_Rico', // PR
+    '801': 'America/Denver',   // UT
+    '802': 'America/New_York', // VT
+    '803': 'America/New_York', // SC
+    '804': 'America/New_York', // VA
+    '805': 'America/Los_Angeles', // CA
+    '806': 'America/Chicago',  // TX
+    '807': 'America/Toronto',  // ON
+    '808': 'Pacific/Honolulu', // HI
+    '810': 'America/Detroit',  // MI
+    '812': 'America/New_York', // IN
+    '813': 'America/New_York', // FL
+    '814': 'America/New_York', // PA
+    '815': 'America/Chicago',  // IL
+    '816': 'America/Chicago',  // MO
+    '817': 'America/Chicago',  // TX
+    '818': 'America/Los_Angeles', // CA
+    '819': 'America/Toronto', // QC
+    '825': 'America/Edmonton', // AB
+    '828': 'America/New_York', // NC
+    '830': 'America/Chicago',  // TX
+    '831': 'America/Los_Angeles', // CA
+    '832': 'America/Chicago',  // TX
+    '833': 'America/Chicago',  // TX (Toll free?) No - Houston overlay
+    '843': 'America/New_York', // SC
+    '845': 'America/New_York', // NY
+    '847': 'America/Chicago',  // IL
+    '848': 'America/New_York', // NJ
+    '850': 'America/Chicago',  // FL
+    '856': 'America/New_York', // NJ
+    '857': 'America/New_York', // MA
+    '858': 'America/Los_Angeles', // CA
+    '859': 'America/New_York', // KY
+    '860': 'America/New_York', // CT
+    '862': 'America/New_York', // NJ
+    '863': 'America/New_York', // FL
+    '864': 'America/New_York', // SC
+    '865': 'America/New_York', // TN
+    '867': 'America/Yellowknife', // YT/NT
+    '870': 'America/Chicago',  // AR
+    '872': 'America/Chicago',  // IL
+    '873': 'America/Toronto', // QC
+    '878': 'America/New_York', // PA
+    '901': 'America/Chicago',  // TN
+    '902': 'America/Halifax',  // NS
+    '903': 'America/Chicago',  // TX
+    '904': 'America/New_York', // FL
+    '905': 'America/Toronto',  // ON
+    '906': 'America/Detroit',  // MI
+    '907': 'America/Anchorage', // AK
+    '908': 'America/New_York', // NJ
+    '909': 'America/Los_Angeles', // CA
+    '910': 'America/New_York', // NC
+    '912': 'America/New_York', // GA
+    '913': 'America/Chicago',  // KS
+    '914': 'America/New_York', // NY
+    '915': 'America/Denver',   // TX
+    '916': 'America/Los_Angeles', // CA
+    '917': 'America/New_York', // NY
+    '918': 'America/Chicago',  // OK
+    '919': 'America/New_York', // NC
+    '920': 'America/Chicago',  // WI
+    '925': 'America/Los_Angeles', // CA
+    '928': 'America/Phoenix',  // AZ
+    '929': 'America/New_York', // NY
+    '930': 'America/New_York', // IN
+    '931': 'America/Chicago',  // TN
+    '934': 'America/New_York', // NY
+    '936': 'America/Chicago',  // TX
+    '937': 'America/New_York', // OH
+    '938': 'America/Chicago',  // AL
+    '939': 'America/Puerto_Rico', // PR
+    '940': 'America/Chicago',  // TX
+    '941': 'America/New_York', // FL
+    '947': 'America/Detroit',  // MI
+    '949': 'America/Los_Angeles', // CA
+    '951': 'America/Los_Angeles', // CA
+    '952': 'America/Chicago',  // MN
+    '954': 'America/New_York', // FL
+    '956': 'America/Chicago',  // TX
+    '959': 'America/New_York', // CT
+    '970': 'America/Denver',   // CO
+    '971': 'America/Los_Angeles', // OR
+    '972': 'America/Chicago',  // TX
+    '973': 'America/New_York', // NJ
+    '978': 'America/New_York', // MA
+    '979': 'America/Chicago',  // TX
+    '980': 'America/New_York', // NC
+    '984': 'America/New_York', // NC
+    '985': 'America/Chicago',  // LA
+    '986': 'America/Boise',    // ID
+    '989': 'America/Detroit',  // MI
+};
+
+
+async function fixTimezones() {
+    console.log('Starting Timezone Fix...');
+
+    const subscribers = await prisma.subscriber.findMany();
+    console.log(`Found ${subscribers.length} subscribers.`);
+
+    let updatedCount = 0;
+
+    for (const sub of subscribers) {
+        if (!sub.phone) continue;
+
+        let newTz = 'America/New_York'; // Default
+        try {
+            const phoneNumber = parsePhoneNumber(sub.phone, 'US');
+            if (phoneNumber && (phoneNumber.country === 'US' || phoneNumber.country === 'CA')) {
+                const national = phoneNumber.nationalNumber;
+                const areaCode = national.substring(0, 3);
+                if (AREA_CODE_TIMEZONES[areaCode]) {
+                    newTz = AREA_CODE_TIMEZONES[areaCode];
+                }
+            } else {
+                console.warn(`Could not parse/validate ${sub.phone} even with US default.`);
+            }
+        } catch (e) {
+            console.warn(`Error parsing ${sub.phone}: ${e.message}`);
+        }
+
+        if (sub.timezone !== newTz) {
+            console.log(`Updating ${sub.phone}: ${sub.timezone} -> ${newTz}`);
+            await prisma.subscriber.update({
+                where: { id: sub.id },
+                data: { timezone: newTz }
+            });
+            updatedCount++;
+        }
+    }
+
+    console.log(`Finished. Updated ${updatedCount} subscribers.`);
+    await prisma.$disconnect();
+}
+
+fixTimezones();
