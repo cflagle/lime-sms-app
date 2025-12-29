@@ -55,7 +55,7 @@ This guide covers the end-to-end process of taking the application live on GCP.
     ```bash
     gcloud sql instances describe lime-db-prod --format="value(connectionName)"
     ```
-    *Save this (e.g., `project-id:us-central1:lime-db-prod`).*
+    *Save this (e.g., `lime-sms-app:us-central1:lime-db-prod`).*
 
 ## Step 3: Secrets Management
 

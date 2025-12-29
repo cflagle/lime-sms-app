@@ -8,6 +8,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
+# Install system dependencies for Prisma
+RUN apk add --no-cache openssl
+
+
 # Copy all files
 COPY . .
 

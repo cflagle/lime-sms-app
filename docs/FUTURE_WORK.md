@@ -85,3 +85,27 @@ If the worker stops sending:
     ```bash
     gcloud run services update lime-sms-worker --force-new-revision
     ```
+
+## 5. Production Health Checks (Google Cloud Console)
+
+To ensure everything is running smoothly, check these pages regularly:
+
+### 1. Cloud Run (Web & Worker)
+*   **Metrics**: Go to Cloud Run > `lime-sms-web` > **Metrics**.
+    *   **Container Instance Count**: Should scale up/down based on traffic.
+    *   **Container CPU/Memory**: Ensure you aren't hitting 100% (if so, increase limits).
+*   **Worker Specifics**: Go to Cloud Run > `lime-sms-worker` > **Metrics**.
+    *   **Instance Count**: MUST be exactly **1** (flat line). If it's > 1, you have duplicate workers.
+    *   **Billable Instance Time**: Should be near 100% if it's always running, or intermittent if it idles.
+
+### 2. Cloud SQL (Database)
+*   Go to **SQL** > `lime-db-prod`.
+*   **CPU Utilization**: specific spikes are fine, but constant high CPU means you need a larger instance.
+*   **Connections**: Ensure you aren't hitting the max connection limit.
+
+### 3. Logs Explorer
+*   Go to **Logging** > **Logs Explorer**.
+*   **Query**: `resource.type="cloud_run_revision" severity="ERROR"`
+*   Check for recurring errors.
+*   **Worker Verification**: Filter by `lime-sms-worker` and search for "Cron". You should see "[Cron] Processing Queue..." entries every minute.
+
