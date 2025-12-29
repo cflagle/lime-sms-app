@@ -42,3 +42,14 @@ cron.schedule('* * * * *', async () => {
 })();
 
 console.log('Worker is running. Jobs scheduled.');
+
+// Cloud Run requires the container to listen on $PORT
+const http = require('http');
+const port = process.env.PORT || 8080;
+const server = http.createServer((req: any, res: any) => {
+    res.writeHead(200);
+    res.end('Worker is running');
+});
+server.listen(port, () => {
+    console.log(`Worker listening on port ${port}`);
+});
