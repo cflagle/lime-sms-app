@@ -50,3 +50,6 @@ steps:
 
 images:
   - 'gcr.io/$PROJECT_ID/lime-sms-app'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
