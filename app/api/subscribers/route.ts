@@ -11,7 +11,7 @@ const SubscriberUpsertSchema = z.object({
     firstName: z.string().optional().nullable(),
     lastName: z.string().optional().nullable(),
     form_title: z.string().optional().nullable(),
-    traits: z.record(z.any()).optional().nullable(), // Accepts JSON object
+    traits: z.record(z.string(), z.any()).optional().nullable(), // Accepts JSON object
 
     // Acquisition Fields
     acq_source: z.string().optional().nullable(),
