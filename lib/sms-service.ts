@@ -33,79 +33,79 @@ export class SmsService {
 
             console.log(`Sync: Found ${leads.length} subscribers on Lime.`);
 
-            for (const lead of leads) {
-                // Map XML fields (PascalCase) to our DB fields
-                const phone = lead.MobileNumber;
-                if (!phone) continue;
+            // Process in batches of 50 to avoid timeouts and improve speed
+            const BATCH_SIZE = 50;
+            let processed = 0;
 
-                // Status isn't explicitly in the XML list, but if they are in the "Opted In" list, they are ACTIVE.
-                // We could double check with 'optinStatus' API if needed, but for now assume ACTIVE.
-                const status = 'ACTIVE';
+            for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+                const chunk = leads.slice(i, i + BATCH_SIZE);
+                console.log(`Sync: Processing batch ${i} to ${i + chunk.length}...`);
 
-                const name = `${lead.FirstName || ''} ${lead.LastName || ''}`.trim() || 'Subscriber';
-                const firstName = lead.FirstName || '';
-                const lastName = lead.LastName || '';
+                await Promise.all(chunk.map(async (lead: any) => {
+                    try {
+                        // Map XML fields (PascalCase) to our DB fields
+                        const phone = lead.MobileNumber;
+                        if (!phone) return;
 
-                const email = lead.Email;
+                        // Status isn't explicitly in the XML list, but if they are in the "Opted In" list, they are ACTIVE.
+                        const status = 'ACTIVE';
 
-                const keywordRaw = (lead.Keyword || '').toUpperCase();
+                        const name = `${lead.FirstName || ''} ${lead.LastName || ''}`.trim() || 'Subscriber';
+                        const firstName = lead.FirstName || '';
+                        const lastName = lead.LastName || '';
+                        const email = lead.Email;
+                        const keywordRaw = (lead.Keyword || '').toUpperCase();
 
-                // Logic to set permissions based on Keyword
-                // User said: "WSWD Keyword: Stock", "TA Keyword: Trade"
-                const subscribe_wswd = keywordRaw.includes('STOCK');
-                const subscribe_ta = keywordRaw.includes('TRADE');
+                        // Logic to set permissions based on Keyword
+                        const subscribe_wswd = keywordRaw.includes('STOCK');
+                        const subscribe_ta = keywordRaw.includes('TRADE');
+                        const enableFallback = (!subscribe_wswd && !subscribe_ta);
 
-                // If neither match (maybe "Pizza"?), what do we do? 
-                // Defaulting to FALSE for safety, or TRUE if we want to be permissive. 
-                // Let's stick to strict matching for now, OR if they are in this list we assume they want *something*.
-                // If both are false, maybe enable BOTH so we don't accidentally ignore them?
-                // Let's enable BOTH if no specific keyword match found, just in case.
-                const enableFallback = (!subscribe_wswd && !subscribe_ta);
+                        // JIT Timezone derivation
+                        let tz = 'America/New_York';
+                        try {
+                            const phoneNumber = parsePhoneNumber(String(phone), 'US');
+                            if (phoneNumber && (phoneNumber.country === 'US' || phoneNumber.country === 'CA')) {
+                                const national = phoneNumber.nationalNumber as string;
+                                const areaCode = national.substring(0, 3);
+                                if (AREA_CODE_TIMEZONES[areaCode]) {
+                                    tz = AREA_CODE_TIMEZONES[areaCode];
+                                }
+                            }
+                        } catch (e) { }
 
-                // JIT Timezone derivation for new subs
-                let tz = 'America/New_York';
-                try {
-                    const phoneNumber = parsePhoneNumber(String(phone), 'US');
-                    if (phoneNumber && (phoneNumber.country === 'US' || phoneNumber.country === 'CA')) {
-                        const national = phoneNumber.nationalNumber as string;
-                        const areaCode = national.substring(0, 3);
-                        if (AREA_CODE_TIMEZONES[areaCode]) {
-                            tz = AREA_CODE_TIMEZONES[areaCode];
-                        }
+                        await prisma.subscriber.upsert({
+                            where: { phone: String(phone) },
+                            update: {
+                                status: status,
+                                subscribe_wswd: subscribe_wswd || enableFallback,
+                                subscribe_ta: subscribe_ta || enableFallback,
+                                timezone: tz,
+                                firstName: firstName,
+                                lastName: lastName
+                            },
+                            create: {
+                                phone: String(phone),
+                                name: name,
+                                firstName: firstName,
+                                lastName: lastName,
+                                email: email,
+                                status: status,
+                                subscribe_wswd: subscribe_wswd || enableFallback,
+                                subscribe_ta: subscribe_ta || enableFallback,
+                                timezone: tz
+                            }
+                        });
+                    } catch (err: any) {
+                        console.error(`Sync: Error processing lead ${lead.MobileNumber}:`, err.message);
                     }
-                } catch (e) { }
+                }));
 
-                await prisma.subscriber.upsert({
-                    where: { phone: String(phone) },
-                    update: {
-                        status: status,
-                        subscribe_wswd: subscribe_wswd || enableFallback,
-                        subscribe_ta: subscribe_ta || enableFallback,
-                        // Only update timezone if current is default/null, OR if we have a better one derived now.
-                        // Actually, prisma update here will overwrite. We should change logic to NOT overwrite if we don't have a good one?
-                        // Better: If we derived a valid TZ (not NY default), use it. 
-                        // If we failed to derive (got NY), ONLY use it if the DB value is also NY or null.
-                        // But upside is we fixed parsing. So we should trust our new parsing.
-                        // The issue was the worker was running OLD code. 
-                        // Once worker runs NEW code, this overwrite is SAFE and DESIRED (to fix drifts).
-                        // So I will keep it as is, but I must ensure worker runs new code.
-                        timezone: tz,
-                        // Update names if changed
-                        firstName: firstName,
-                        lastName: lastName
-                    },
-                    create: {
-                        phone: String(phone),
-                        name: name,
-                        firstName: firstName,
-                        lastName: lastName,
-                        email: email,
-                        status: status,
-                        subscribe_wswd: subscribe_wswd || enableFallback,
-                        subscribe_ta: subscribe_ta || enableFallback,
-                        timezone: tz
-                    }
-                });
+                processed += chunk.length;
+                // Periodic logging
+                if (processed % 1000 === 0) {
+                    console.log(`Sync: Processed ${processed}/${leads.length} subscribers.`);
+                }
             }
             console.log("Sync: Completed.");
         } catch (e: any) {
