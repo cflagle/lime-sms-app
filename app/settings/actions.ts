@@ -2,6 +2,51 @@
 
 import { updateAppConfig } from '@/lib/config-service';
 import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+
+const MessageImportSchema = z.array(z.object({
+    name: z.string(),
+    content: z.string(),
+    brand: z.string(),
+    active: z.boolean().optional(),
+    cooldownDays: z.number().optional()
+}));
+
+export async function importMessages(jsonString: string) {
+    try {
+        const data = JSON.parse(jsonString);
+        const messages = MessageImportSchema.parse(data);
+
+        let importedCount = 0;
+
+        for (const msg of messages) {
+            await prisma.message.upsert({
+                where: { name: msg.name },
+                update: {
+                    content: msg.content,
+                    brand: msg.brand,
+                    active: msg.active,
+                    cooldownDays: msg.cooldownDays
+                },
+                create: {
+                    name: msg.name,
+                    content: msg.content,
+                    brand: msg.brand,
+                    active: msg.active || true,
+                    cooldownDays: msg.cooldownDays || 14
+                }
+            });
+            importedCount++;
+        }
+
+        revalidatePath('/settings');
+        return { success: true, count: importedCount };
+    } catch (e: any) {
+        console.error("Import Error:", e);
+        return { success: false, error: e.message || "Invalid JSON format" };
+    }
+}
 
 export async function saveSettings(formData: FormData) {
     const rawTestNumbers = formData.get('testNumbers') as string;

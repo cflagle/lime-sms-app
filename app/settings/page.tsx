@@ -54,12 +54,20 @@ export default function SettingsPage() {
 import { getAppConfig } from '@/lib/config-service';
 import { saveSettings } from './actions';
 import { TimeScheduler } from './TimeScheduler';
+import { MigrationUI } from './migration-ui';
 
 async function ConfigForm() {
     const config = await getAppConfig();
 
     return (
         <form action={saveSettings} className="space-y-6">
+
+            {/* Migration Tool */}
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8">
+                <h3 className="text-lg font-medium text-white mb-4">Message Migration</h3>
+                <MigrationUI />
+            </div>
+
             <div className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-800">
                 <div>
                     <h4 className="font-medium text-white">Master Sending Switch</h4>
