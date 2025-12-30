@@ -2,6 +2,8 @@ import { Users, MessageSquare, Activity, ArrowUpRight, ArrowDownRight, Clock } f
 import { prisma } from '@/lib/prisma';
 import dayjs from 'dayjs';
 
+export const dynamic = 'force-dynamic';
+
 async function getStats() {
   const subscriberCount = await prisma.subscriber.count({ where: { status: 'ACTIVE' } });
   const messageCount = await prisma.message.count({ where: { active: true } });
