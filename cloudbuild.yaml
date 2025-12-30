@@ -58,6 +58,8 @@ steps:
       - 'run,worker'
       - '--min-instances' # Keep at least 1 alive to run cron
       - '1'
+      - '--max-instances' # Prevent duplicates by allowing only 1 worker
+      - '1'
       - '--add-cloudsql-instances'
       - 'lime-sms-app:us-central1:lime-db-prod'
       - '--set-secrets'

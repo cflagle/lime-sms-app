@@ -1,0 +1,9 @@
+﻿[dotenv@17.2.3] injecting env (0) from .env -- tip: Γ£à audit secrets and track compliance: https://dotenvx.com/ops
+=== Testing Strict Timezone Logic ===
+Test 1: Valid LA Number (No stored TZ)
+  Result: true (Expected: true/false depending on time of day, but should NOT be suppressed by TZ)
+Test 2: Unknown Area Code (No stored TZ)
+  Result: false (Expected: false)
+Test 3: Stored Timezone is set
+  Result: true (Expected: true/false depending on time - checks Chicago)
+=== Done ===

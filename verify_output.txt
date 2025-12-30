@@ -1,0 +1,11 @@
+ERROR: PrismaClientInitializationError: 
+Invalid `prisma.subscriber.groupBy()` invocation in
+C:\Advertising\My Tech\Lime Cellular App\lime-sms-app\scripts\verify-fix-file.js:12:44
+
+   9 let output = "Verifying DB State...\n";
+  10 
+  11 // Check distribution
+→ 12 const counts = await prisma.subscriber.groupBy(
+Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.

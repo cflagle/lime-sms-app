@@ -62,15 +62,20 @@ export class SmsService {
                         const enableFallback = (!subscribe_wswd && !subscribe_ta);
 
                         // JIT Timezone derivation
-                        let tz = 'America/New_York';
+                        let tz = null;
                         try {
-                            const phoneNumber = parsePhoneNumber(String(phone), 'US');
-                            if (phoneNumber && (phoneNumber.country === 'US' || phoneNumber.country === 'CA')) {
-                                const national = phoneNumber.nationalNumber as string;
-                                const areaCode = national.substring(0, 3);
-                                if (AREA_CODE_TIMEZONES[areaCode]) {
-                                    tz = AREA_CODE_TIMEZONES[areaCode];
-                                }
+                            const phoneStr = String(phone).replace(/\D/g, '');
+                            let areaCode = '';
+                            if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
+                                areaCode = phoneStr.substring(1, 4);
+                            } else if (phoneStr.length === 10) {
+                                areaCode = phoneStr.substring(0, 3);
+                            }
+
+                            if (areaCode && AREA_CODE_TIMEZONES[areaCode]) {
+                                tz = AREA_CODE_TIMEZONES[areaCode];
+                            } else {
+                                console.warn(`Sync: Could not determine timezone for ${phone} (Area Code: ${areaCode}). Leaving as NULL.`);
                             }
                         } catch (e) { }
 
@@ -219,22 +224,25 @@ export class SmsService {
         let tz = sub.timezone;
         if (!tz && sub.phone) {
             try {
-                // Remove + if present for parsing, though library handles it.
-                // Assuming standard E.164 or national format
-                const phoneNumber = parsePhoneNumber(sub.phone, 'US');
-                if (phoneNumber && (phoneNumber.country === 'US' || phoneNumber.country === 'CA')) {
-                    // Extract Area Code (National Number first 3 digits)
-                    const national = phoneNumber.nationalNumber as string; // e.g. 2125551234
-                    const areaCode = national.substring(0, 3);
-                    if (AREA_CODE_TIMEZONES[areaCode]) {
-                        tz = AREA_CODE_TIMEZONES[areaCode];
-                    }
+                const phoneStr = String(sub.phone).replace(/\D/g, '');
+                let areaCode = '';
+                if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
+                    areaCode = phoneStr.substring(1, 4);
+                } else if (phoneStr.length === 10) {
+                    areaCode = phoneStr.substring(0, 3);
+                }
+
+                if (areaCode && AREA_CODE_TIMEZONES[areaCode]) {
+                    tz = AREA_CODE_TIMEZONES[areaCode];
                 }
             } catch (e) {
                 // console.error("Error parsing phone for TZ", e);
             }
+        }
 
-            if (!tz) tz = "America/New_York"; // Default fallback
+        if (!tz) {
+            console.warn(`Eligibility Check: suppressed for ${sub.phone} - NO TIMEZONE AVAILABLE.`);
+            return false;
         }
 
         const localTime = now.tz(tz);
