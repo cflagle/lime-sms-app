@@ -18,6 +18,8 @@ steps:
       - 'gcr.io/$PROJECT_ID/lime-sms-app'
       - '--region'
       - 'us-central1'
+      - '--memory'
+      - '2Gi'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -44,6 +46,8 @@ steps:
       - 'us-central1'
       - '--platform'
       - 'managed'
+      - '--memory'
+      - '2Gi'
       - '--no-allow-unauthenticated' # Worker doesn't need external access
       - '--command'
       - 'npm'
