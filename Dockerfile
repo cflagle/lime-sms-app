@@ -4,13 +4,14 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Install dependencies (only package.json first for caching)
-COPY package.json package-lock.json* ./
-RUN npm install
-
-# Install system dependencies for Prisma
+# Install system dependencies for Prisma (Required for Alpine)
 RUN apk add --no-cache openssl
 
+# Install dependencies
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma/
+
+RUN npm install
 
 # Copy all files
 COPY . .
