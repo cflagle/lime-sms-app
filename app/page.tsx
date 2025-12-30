@@ -43,13 +43,25 @@ async function getStats() {
     }
   });
 
+  // Business KPIs
+  const revenueAgg = await prisma.trackingEvent.aggregate({
+    _sum: { revenue: true }
+  });
+  const totalRevenue = revenueAgg._sum.revenue || 0;
+
+  const totalClicks = await prisma.trackingEvent.count({
+    where: { eventType: 'CLICK' }
+  });
+
   return {
     subscriberCount,
     messageCount,
     sentToday,
     growthPercent: growthPercent.toFixed(1),
     dailyLimit: config?.dailyLimitPerUser || 2,
-    recentLogs
+    recentLogs,
+    totalRevenue,
+    totalClicks
   };
 }
 
@@ -62,7 +74,9 @@ export default async function Home() {
       sentToday: 0,
       growthPercent: '0.0',
       dailyLimit: 2,
-      recentLogs: []
+      recentLogs: [],
+      totalRevenue: 0,
+      totalClicks: 0
     };
   });
 
@@ -75,56 +89,72 @@ export default async function Home() {
         <p className="text-slate-400 mt-2">Overview of your SMS campaigns.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Stat Card 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Stat Card 1: Subscribers */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-slate-400 text-sm font-medium">Active Subscribers</p>
-              <h3 className="text-3xl font-bold text-white mt-2">{stats.subscriberCount}</h3>
+              <h3 className="text-2xl font-bold text-white mt-2">{stats.subscriberCount.toLocaleString()}</h3>
             </div>
-            <div className="h-12 w-12 bg-lime-500/10 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6 text-lime-400" />
+            <div className="h-10 w-10 bg-lime-500/10 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-lime-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm">
+          <div className="mt-4 flex items-center text-xs">
             <span className={`${isGrowthPositive ? 'text-emerald-400' : 'text-red-400'} flex items-center`}>
-              {isGrowthPositive ? <ArrowUpRight className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
+              {isGrowthPositive ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
               {isGrowthPositive ? '+' : ''}{stats.growthPercent}%
             </span>
-            <span className="text-slate-500 ml-2">from last week</span>
+            <span className="text-slate-500 ml-2">vs last week</span>
           </div>
         </div>
 
-        {/* Stat Card 2 */}
+        {/* Stat Card 2: Sent Today */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-400 text-sm font-medium">Messages Sent Today</p>
-              <h3 className="text-3xl font-bold text-white mt-2">{stats.sentToday}</h3>
+              <p className="text-slate-400 text-sm font-medium">Messages Sent (Today)</p>
+              <h3 className="text-2xl font-bold text-white mt-2">{stats.sentToday.toLocaleString()}</h3>
             </div>
-            <div className="h-12 w-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-              <Activity className="w-6 h-6 text-blue-400" />
+            <div className="h-10 w-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+              <Activity className="w-5 h-5 text-blue-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm">
-            <span className="text-slate-500">Pacing active: {stats.dailyLimit}/day limit</span>
+          <div className="mt-4 flex items-center text-xs">
+            <span className="text-slate-500">Daily Limit: {stats.dailyLimit}</span>
           </div>
         </div>
 
-        {/* Stat Card 3 */}
+        {/* Stat Card 3: Revenue */}
         <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-400 text-sm font-medium">Active Messages</p>
-              <h3 className="text-3xl font-bold text-white mt-2">{stats.messageCount}</h3>
+              <p className="text-slate-400 text-sm font-medium">Total Revenue</p>
+              <h3 className="text-2xl font-bold text-white mt-2">${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
             </div>
-            <div className="h-12 w-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-purple-400" />
+            <div className="h-10 w-10 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+              <span className="text-emerald-400 font-bold text-lg">$</span>
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm">
-            <span className="text-slate-500">In rotation</span>
+          <div className="mt-4 flex items-center text-xs">
+            <span className="text-slate-500">Lifetime verified revenue</span>
+          </div>
+        </div>
+
+        {/* Stat Card 4: Clicks */}
+        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Total Clicks</p>
+              <h3 className="text-2xl font-bold text-white mt-2">{stats.totalClicks.toLocaleString()}</h3>
+            </div>
+            <div className="h-10 w-10 bg-purple-500/10 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-purple-400" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs">
+            <span className="text-slate-500">Across all messages</span>
           </div>
         </div>
       </div>
