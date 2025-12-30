@@ -151,3 +151,53 @@ Triggers the main `SmsService.processQueue()` loop.
 - **Syncs** new subscribers from configured Lime List ID.
 - **Processes** eligible subscribers for message delivery.
 - **Respects** Global Daily Cap and Timezone Schedules.
+
+---
+
+## 6. Subscriber Upsert/Sync
+
+**Endpoint**: `POST /api/subscribers`
+
+**Purpose**: 
+Programmatically adds or updates a subscriber record. This is useful for real-time syncing from other systems (Zapier, CRMs) without waiting for the periodic Lime sync. If the subscriber already exists (matched by phone), their details are updated.
+
+**Authentication**: 
+Requires a Bearer Token matching either `APP_PASSWORD` or `CRON_SECRET`.
+`Authorization: Bearer <YOUR_SECRET>`
+
+**Request Body**:
+```json
+{
+  "phone": "15551234567",     // Required: Key to find subscriber
+  "email": "john@example.com", // Optional
+  "firstName": "John",         // Optional
+  "lastName": "Doe",           // Optional
+  "form_title": "Investor Quiz A", // Optional: Segment by Source/Form
+  "traits": {                 // Optional: Stored as JSON string
+     "plan": "premium",
+     "investment_goal": "growth"
+  },
+  "acq_source": "meta",       // Optional: Acquisition Attribution
+  "acq_campaign": "q1_growth",
+  "acq_medium": "cpc",
+  "acq_content": "video_ad_1",
+  "acq_term": "investing"
+}
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "id": 12345,
+  "action": "updated" // or "created"
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "error": "Validation Failed" // or "Unauthorized"
+}
+```
+
