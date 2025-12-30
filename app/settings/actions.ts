@@ -117,8 +117,6 @@ export async function saveSettings(formData: FormData) {
         limeListId,
         globalDailyCap,
         dryRunMode,
-        queueMinId,
-        syncSkip
     });
 
     revalidatePath('/settings');

@@ -47,10 +47,11 @@ steps:
       - '--platform'
       - 'managed'
       - '--memory'
-      - '2Gi'
+      - '4Gi'
       - '--timeout'
       - '3600'
       - '--no-allow-unauthenticated' # Worker doesn't need external access
+      - '--no-cpu-throttling' # CRITICAL: Ensure CPU is always allocated for background background processing
       - '--command'
       - 'npm'
       - '--args'
