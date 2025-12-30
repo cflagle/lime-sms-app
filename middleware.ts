@@ -14,6 +14,7 @@ export function middleware(request: NextRequest) {
         pathname.startsWith('/login') ||
         pathname.startsWith('/api/cron') ||
         pathname.startsWith('/api/webhooks') ||
+        pathname.startsWith('/api/subscribers') ||
         pathname.startsWith('/api/shorten') ||
         pathname.startsWith('/api/send-direct') ||
         pathname.startsWith('/_next') ||
