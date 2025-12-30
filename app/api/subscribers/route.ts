@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Validation Failed', details: error.errors }, { status: 400 });
+            return NextResponse.json({ error: 'Validation Failed', details: error.issues }, { status: 400 });
         }
         console.error("Subscriber API Error:", error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
