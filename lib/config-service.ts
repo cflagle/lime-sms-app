@@ -45,6 +45,8 @@ export async function updateAppConfig(updates: {
     limeListId?: string;
     globalDailyCap?: number;
     dryRunMode?: boolean;
+    queueMinId?: number;
+    syncSkip?: number;
 }) {
     // Only update fields that are present in the payload
     const data: any = {};
@@ -65,6 +67,8 @@ export async function updateAppConfig(updates: {
     if (updates.limeListId != null) data.limeListId = updates.limeListId;
     if (updates.globalDailyCap != null) data.globalDailyCap = updates.globalDailyCap;
     if (updates.dryRunMode !== undefined) data.dryRunMode = updates.dryRunMode;
+    if (updates.queueMinId !== undefined) data.queueMinId = updates.queueMinId;
+    if (updates.syncSkip !== undefined) data.syncSkip = updates.syncSkip;
 
     return prisma.appConfig.update({
         where: { id: 1 }, // Assuming a single app config with ID 1

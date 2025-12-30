@@ -70,6 +70,10 @@ export async function saveSettings(formData: FormData) {
     const globalDailyCap = parseInt((formData.get('globalDailyCap') as string) || '0') || 0;
     const dryRunMode = formData.get('dryRunMode') === 'on';
 
+    // Manual Sync/Queue Overrides
+    const queueMinId = parseInt((formData.get('queueMinId') as string) || '0') || 0;
+    const syncSkip = parseInt((formData.get('syncSkip') as string) || '0') || 0;
+
     // Parse Time Schedules
     // Logic: Inputs are named prefix + "-time-" + index
     const extractTimes = (prefix: string) => {
@@ -112,7 +116,9 @@ export async function saveSettings(formData: FormData) {
         sendTimes, // Legacy fallback
         limeListId,
         globalDailyCap,
-        dryRunMode
+        dryRunMode,
+        queueMinId,
+        syncSkip
     });
 
     revalidatePath('/settings');

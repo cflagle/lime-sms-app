@@ -37,7 +37,14 @@ export class SmsService {
             const BATCH_SIZE = 50;
             let processed = 0;
 
-            for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+            // Manual Skip Logic (Threshold)
+            let startIndex = 0;
+            if (config.syncSkip && config.syncSkip > 0) {
+                console.log(`Sync: Skipping first ${config.syncSkip} contacts as requested.`);
+                startIndex = config.syncSkip;
+            }
+
+            for (let i = startIndex; i < leads.length; i += BATCH_SIZE) {
                 const chunk = leads.slice(i, i + BATCH_SIZE);
                 console.log(`Sync: Processing batch ${i} to ${i + chunk.length}...`);
 
@@ -141,7 +148,8 @@ export class SmsService {
         }
 
         // 1. Get all active subscribers using CURSOR PAGINATION
-        let lastId = 0;
+        let lastId = config.queueMinId || 0;
+        if (lastId > 0) console.log(`Processing Queue: Starting from ID > ${lastId} (Manual Override)`);
         const BATCH_SIZE = 500;
 
         while (true) {

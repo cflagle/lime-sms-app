@@ -166,4 +166,8 @@ model AppConfig {
   dryRunMode              Boolean @default(false)
   
   activeSegmentId         Int?    // If set, only send to this segment
+  
+  // Manual Overrides
+  queueMinId              Int     @default(0) // Start processing queue from this ID
+  syncSkip                Int     @default(0) // Skip this many contacts when syncing from Lime
 }

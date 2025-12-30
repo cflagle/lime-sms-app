@@ -119,6 +119,39 @@ async function ConfigForm() {
                         </div>
                     </div>
                 </div>
+
+            </div>
+
+
+            {/* Manual Overrides */}
+            <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 space-y-6">
+                <div>
+                    <h4 className="font-medium text-white mb-4 text-orange-400">Manual Overrides</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Queue Min ID (Resume Sending)</label>
+                            <input
+                                type="number"
+                                name="queueMinId"
+                                defaultValue={config.queueMinId || 0}
+                                min="0"
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Start processing queue from this Subscriber ID (Skipping lower IDs).</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Sync Skip Count</label>
+                            <input
+                                type="number"
+                                name="syncSkip"
+                                defaultValue={config.syncSkip || 0}
+                                min="0"
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Skip the first N contacts from Lime sync (Resume downloading).</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* WSWD Settings */}
@@ -214,6 +247,6 @@ async function ConfigForm() {
                     Save Settings
                 </button>
             </div>
-        </form>
+        </form >
     );
 }

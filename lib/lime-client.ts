@@ -100,7 +100,12 @@ export class LimeClient {
             params.append('api_id', config.apiId);
             params.append('optInListId', listId);
 
-            const response = await axios.get(LIME_BASE_URL, { params, responseType: 'text' });
+            const response = await axios.get(LIME_BASE_URL, {
+                params,
+                responseType: 'text',
+                timeout: 600000, // 10 minutes (Sync can be slow for large lists)
+                maxBodyLength: Infinity
+            });
 
             // Parse XML response
             const parser = new xml2js.Parser({ explicitArray: false });
