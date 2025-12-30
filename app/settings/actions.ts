@@ -120,16 +120,14 @@ export async function saveSettings(formData: FormData) {
 
 import { SmsService } from '@/lib/sms-service';
 
-export async function triggerSync() {
+export async function triggerSync(_formData: FormData) {
     try {
         console.log("Manual Sync Triggered from Settings");
         await SmsService.syncSubscribers();
         await SmsService.processQueue();
 
         revalidatePath('/settings');
-        return { success: true, message: "Sync started successfully." };
     } catch (e: any) {
         console.error("Manual Sync Error:", e);
-        return { success: false, error: e.message };
     }
 }
