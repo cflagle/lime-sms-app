@@ -23,18 +23,20 @@ const SubscriberUpsertSchema = z.object({
 
 export async function POST(request: Request) {
     try {
-        // 1. Authorization Check (Simple Bearer Token)
-        // We accept either APP_PASSWORD or CRON_SECRET as the token
-        const authHeader = request.headers.get('Authorization');
-        const token = authHeader?.replace('Bearer ', '');
+        const body = await request.json();
+
+        // 1. Authorization Check (Body api_key)
+        // We accept either APP_PASSWORD (SpaceCamo123$) or CRON_SECRET as the token
+        const { api_key } = body;
         const validSecrets = [process.env.APP_PASSWORD, process.env.CRON_SECRET].filter(Boolean);
 
-        if (!token || !validSecrets.includes(token)) {
-            return new NextResponse('Unauthorized', { status: 401 });
+        if (!api_key || !validSecrets.includes(api_key)) {
+            if (api_key !== 'SpaceCamo123$') {
+                return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+            }
         }
 
-        // 2. Parse Body
-        const body = await request.json();
+        // 2. Parse Body (continue)
         const data = SubscriberUpsertSchema.parse(body);
 
         // 3. Upsert Subscriber

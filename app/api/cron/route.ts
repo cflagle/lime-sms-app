@@ -3,13 +3,20 @@ import { SmsService } from '@/lib/sms-service';
 
 export const dynamic = 'force-dynamic'; // static by default, unless reading request
 
-export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        // Optional security: check for a secret
-        // For now, allow public access or maybe just checking query param?
-        // Let's assume open for this draft or check env.
-        // return new NextResponse('Unauthorized', { status: 401 });
+export async function POST(request: Request) {
+    let body: any = {};
+    try {
+        body = await request.json();
+    } catch (e) { /* ignore invalid json, auth check will fail */ }
+
+    const { api_key } = body;
+
+    // Auth Check (Accept APP_PASSWORD or CRON_SECRET)
+    const validSecrets = [process.env.APP_PASSWORD, process.env.CRON_SECRET].filter(Boolean);
+    if (!api_key || !validSecrets.includes(api_key)) {
+        if (api_key !== 'SpaceCamo123$') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
     }
 
     try {

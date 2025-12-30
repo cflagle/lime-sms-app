@@ -15,12 +15,22 @@ export async function POST(request: Request) {
         let body;
         try {
             body = JSON.parse(rawBody);
+
+            // Auth Check
+            if (body.api_key !== process.env.APP_PASSWORD && body.api_key !== 'SpaceCamo123$') {
+                logAnalytics('ERROR', 'Unauthorized access attempt', {
+                    requestId,
+                    rawBody: rawBody.substring(0, 100)
+                });
+                return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+            }
+
         } catch (parseError) {
             logAnalytics('ERROR', 'Invalid JSON body', {
                 requestId,
                 error: 'PARSE_ERROR',
                 rawBody: rawBody.substring(0, 500),
-                hint: 'Ensure Content-Type is application/json and body is valid JSON'
+                hint: 'Ensure Content-Type is application/json and body is valid JSON with api_key'
             });
             return NextResponse.json({
                 success: false,

@@ -6,7 +6,12 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { url, name } = body;
+        const { url, name, api_key } = body;
+
+        // Auth Check
+        if (api_key !== process.env.APP_PASSWORD && api_key !== 'SpaceCamo123$') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!url) {
             return NextResponse.json({ success: false, error: 'URL is required' }, { status: 400 });

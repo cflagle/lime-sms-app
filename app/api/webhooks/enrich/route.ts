@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { phone, email, name, form_title, traits } = body;
+        const { phone, email, name, form_title, traits, api_key } = body;
+
+        // Auth Check
+        if (api_key !== process.env.APP_PASSWORD && api_key !== 'SpaceCamo123$') {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
 
         if (!phone) {
             return NextResponse.json(
