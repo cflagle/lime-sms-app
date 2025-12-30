@@ -117,3 +117,19 @@ export async function saveSettings(formData: FormData) {
 
     revalidatePath('/settings');
 }
+
+import { SmsService } from '@/lib/sms-service';
+
+export async function triggerSync() {
+    try {
+        console.log("Manual Sync Triggered from Settings");
+        await SmsService.syncSubscribers();
+        await SmsService.processQueue();
+
+        revalidatePath('/settings');
+        return { success: true, message: "Sync started successfully." };
+    } catch (e: any) {
+        console.error("Manual Sync Error:", e);
+        return { success: false, error: e.message };
+    }
+}

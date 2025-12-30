@@ -38,13 +38,14 @@ export default function SettingsPage() {
                     <p className="text-slate-400 text-sm mb-4">
                         To force a synchronization with Lime Cellular, you can trigger the cron endpoint manually.
                     </p>
-                    <a
-                        href="/api/cron"
-                        target="_blank"
-                        className="inline-block bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors border border-slate-700"
-                    >
-                        Trigger Sync Now
-                    </a>
+                    <form action={triggerSync}>
+                        <button
+                            type="submit"
+                            className="inline-block bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors border border-slate-700 font-medium"
+                        >
+                            Trigger Sync Now
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -52,7 +53,7 @@ export default function SettingsPage() {
 }
 
 import { getAppConfig } from '@/lib/config-service';
-import { saveSettings } from './actions';
+import { saveSettings, triggerSync } from './actions';
 import { TimeScheduler } from './TimeScheduler';
 import { MigrationUI } from './migration-ui';
 
