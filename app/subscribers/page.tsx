@@ -4,14 +4,18 @@ import dayjs from 'dayjs';
 export const dynamic = 'force-dynamic';
 
 async function getSubscribers() {
-    return await prisma.subscriber.findMany({
-        orderBy: { updatedAt: 'desc' },
-        take: 100 // Limit for now
-    });
+    const [subscribers, totalCount] = await Promise.all([
+        prisma.subscriber.findMany({
+            orderBy: { updatedAt: 'desc' },
+            take: 100 // Limit for now
+        }),
+        prisma.subscriber.count()
+    ]);
+    return { subscribers, totalCount };
 }
 
 export default async function SubscribersPage() {
-    const subscribers = await getSubscribers();
+    const { subscribers, totalCount } = await getSubscribers();
 
     return (
         <div className="space-y-6">
@@ -22,7 +26,7 @@ export default async function SubscribersPage() {
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="text-slate-500 text-sm">
-                        Total: {subscribers.length}
+                        Showing {subscribers.length} of {totalCount.toLocaleString()}
                     </div>
                     <a
                         href="/api/export/subscribers"
