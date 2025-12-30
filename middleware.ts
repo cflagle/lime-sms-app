@@ -13,6 +13,9 @@ export function middleware(request: NextRequest) {
     if (
         pathname.startsWith('/login') ||
         pathname.startsWith('/api/cron') ||
+        pathname.startsWith('/api/webhooks') ||
+        pathname.startsWith('/api/shorten') ||
+        pathname.startsWith('/api/send-direct') ||
         pathname.startsWith('/_next') ||
         pathname.includes('.') // file extension
     ) {
