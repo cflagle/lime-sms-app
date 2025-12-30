@@ -124,3 +124,28 @@ To ensure everything is running smoothly, check these pages regularly:
 *   Check for recurring errors.
 *   **Worker Verification**: Filter by `lime-sms-worker` and search for "Cron". You should see "[Cron] Processing Queue..." entries every minute.
 
+## 6. Cost Optimization Opportunities
+
+Currently, the `lime-sms-worker` service runs 24/7 with `min-instances: 1` to maintain the `node-cron` schedule. This costs approximately $45/month.
+
+### Strategy: Migrate to Cloud Run Jobs
+You can reduce this cost by ~95% (to <$2/mo) by switching from an "Always-On Service" to "Cloud Run Jobs" triggered by Cloud Scheduler.
+
+#### How it works:
+1.  **Code Change**: Modify `scripts/worker.ts` to execute **once** and exit, rather than starting a cron loop.
+    ```typescript
+    // Example concept
+    if (process.argv.includes('--run-once')) {
+       await SmsService.processQueue();
+       process.exit(0);
+    }
+    ```
+2.  **Infrastructure Change**:
+    *   Deploy the worker container as a **Cloud Run Job**.
+    *   Create a **Cloud Scheduler** trigger that invokes this job every 5 minutes (or your desired interval).
+3.  **Cost Savings**: You only pay for the CPU/Memory used during the few seconds/minutes the job runs, rather than paying for 24/7 idle time.
+
+#### When to implement:
+Perform this optimization once you are comfortable with the app's stability and want to reduce your GCP bill.
+
+

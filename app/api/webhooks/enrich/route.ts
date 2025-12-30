@@ -73,6 +73,16 @@ export async function POST(request: Request) {
 
         console.log(`[Enrich] Updated subscriber ${subscriber.id} with email: ${email}`);
 
+        // Log Tracking Event
+        await prisma.trackingEvent.create({
+            data: {
+                eventType: 'ENRICH',
+                subscriberId: updated.id,
+                email: email,
+                utmSource: form_title, // Use form_title as source context if available
+            }
+        });
+
         return NextResponse.json({
             success: true,
             id: updated.id,

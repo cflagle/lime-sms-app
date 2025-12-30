@@ -80,10 +80,28 @@ export async function POST(request: Request) {
             }
         });
 
+        const action = subscriber.createdAt.getTime() === subscriber.updatedAt.getTime() ? 'created' : 'updated';
+
+        // 4. Log Tracking Event
+        await prisma.trackingEvent.create({
+            data: {
+                eventType: action === 'created' ? 'SUBSCRIBE' : 'UPDATE',
+                subscriberId: subscriber.id,
+                // Log acquisition data if present
+                trafficSource: data.acq_source,
+                utmSource: data.acq_source,
+                utmMedium: data.acq_medium,
+                utmCampaign: data.acq_campaign,
+                utmContent: data.acq_content,
+                utmTerm: data.acq_term,
+                email: data.email,
+            }
+        });
+
         return NextResponse.json({
             success: true,
             id: subscriber.id,
-            action: subscriber.createdAt.getTime() === subscriber.updatedAt.getTime() ? 'created' : 'updated'
+            action: action
         });
 
     } catch (error: any) {
