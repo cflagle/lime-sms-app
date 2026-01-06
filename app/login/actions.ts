@@ -8,10 +8,28 @@ export async function login(prevState: any, formData: FormData) {
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
 
-    const APP_USERNAME = process.env.APP_USERNAME || 'cflagle';
-    const APP_PASSWORD = process.env.APP_PASSWORD || 'SpaceCamo123$';
+    // Define allowed users
+    const validUsers = [
+        // Default/Env user
+        {
+            username: process.env.APP_USERNAME || 'cflagle',
+            password: process.env.APP_PASSWORD || 'SpaceCamo123$'
+        },
+        // Fallback/Explicit original user (in case env vars are different)
+        {
+            username: 'cflagle',
+            password: 'SpaceCamo123$'
+        },
+        // New user
+        {
+            username: 'cflagle1',
+            password: 'Saratov13$13_'
+        }
+    ];
 
-    if (username === APP_USERNAME && password === APP_PASSWORD) {
+    const isValid = validUsers.some(user => user.username === username && user.password === password);
+
+    if (isValid) {
         (await cookies()).set(AUTH_COOKIE_NAME, 'authenticated', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
