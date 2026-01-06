@@ -1,28 +1,36 @@
 
-require('dotenv').config();
 import { PrismaClient } from '@prisma/client';
 import { AREA_CODE_TIMEZONES } from '../lib/area-codes';
 
 const prisma = new PrismaClient();
 
-async function main() {
-    console.log("Starting Timezone Fix Migration...");
+async function fixAllTimezones() {
+    console.log("Starting Timezone Fix...");
+    const total = await prisma.subscriber.count();
+    console.log(`Total subscribers to check: ${total}`);
 
-    // Fetch all subscribers (for larger scale, use cursor pagination, but for now fetch all ID/Phone/TZ)
-    const subscribers = await prisma.subscriber.findMany({
-        select: { id: true, phone: true, timezone: true }
-    });
+    let processed = 0;
+    let updated = 0;
+    let batchSize = 1000;
+    let cursorId = 0;
 
-    console.log(`Found ${subscribers.length} subscribers. Processing...`);
+    while (true) {
+        const subscribers = await prisma.subscriber.findMany({
+            take: batchSize,
+            skip: cursorId === 0 ? 0 : 1, // Skip cursor if not first
+            cursor: cursorId === 0 ? undefined : { id: cursorId },
+            orderBy: { id: 'asc' }
+        });
 
-    let updatedCount = 0;
-    let nullCount = 0;
-    let skippedCount = 0;
+        if (subscribers.length === 0) break;
 
-    for (const sub of subscribers) {
-        let newTz: string | null = null;
+        // Prepare updates
+        // To be safe and fast, we can loop and update individually?
+        // Or filter for those needing update and Promise.all?
 
-        try {
+        const updates = [];
+
+        for (const sub of subscribers) {
             const phoneStr = String(sub.phone).replace(/\D/g, '');
             let areaCode = '';
             if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
@@ -31,42 +39,39 @@ async function main() {
                 areaCode = phoneStr.substring(0, 3);
             }
 
-            if (areaCode && AREA_CODE_TIMEZONES[areaCode]) {
-                newTz = AREA_CODE_TIMEZONES[areaCode];
+            const correctTz = AREA_CODE_TIMEZONES[areaCode];
+
+            // Only update if we FOUND a timezone and it is DIFFERENT
+            // If we can't determine timezone, we leave it alone (or set to null?)
+            // User implied they want strict timezone. If invalid, maybe null is better than wrong default.
+            // But let's stick to correcting known mismatches first.
+
+            if (correctTz && sub.timezone !== correctTz) {
+                updates.push(prisma.subscriber.update({
+                    where: { id: sub.id },
+                    data: { timezone: correctTz }
+                }));
             }
-        } catch (e) { }
 
-        // Decide if we update
-        // If current TZ is already correct, skip
-        // If current TZ is 'America/New_York' (likely default) and newTz is different (or NULL), update.
-        // If current TZ is valid string but newTz is null? Keep existing? No, user said "determine real timezone for every single number".
-        // If we CANT determine it, we want it NULL so we don't send.
-        // So we should enforce strict overwriting if the area-code logic says so.
-        // HOWEVER, maybe some were manually set? Unlikely.
-        // Let's assume strict Area Code rule.
-
-        if (sub.timezone !== newTz) {
-            // Update
-            await prisma.subscriber.update({
-                where: { id: sub.id },
-                data: { timezone: newTz }
-            });
-            // console.log(`Updated ${sub.phone}: ${sub.timezone} -> ${newTz}`);
-            updatedCount++;
-        } else {
-            skippedCount++;
+            cursorId = sub.id;
         }
 
-        if (!newTz) nullCount++;
+        if (updates.length > 0) {
+            await Promise.all(updates);
+            updated += updates.length;
+        }
+
+        processed += subscribers.length;
+        console.log(`Processed ${processed}/${total}. Updated ${updated} so far.`);
     }
 
-    console.log("Migration Complete.");
-    console.log(`Total Scanned: ${subscribers.length}`);
-    console.log(`Updated: ${updatedCount}`);
-    console.log(`Skipped (Already Correct): ${skippedCount}`);
-    console.log(`Total Unknown/Null Timezones: ${nullCount}`);
+    console.log("Done.");
+    console.log(`Total Verified: ${processed}`);
+    console.log(`Total Updated: ${updated}`);
 }
 
-main()
+fixAllTimezones()
     .catch(e => console.error(e))
-    .finally(() => prisma.$disconnect());
+    .finally(async () => {
+        await prisma.$disconnect();
+    });
