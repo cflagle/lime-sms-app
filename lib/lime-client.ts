@@ -3,6 +3,44 @@ import xml2js from 'xml2js';
 
 const LIME_BASE_URL = 'https://mcpn.us/limeApi';
 
+/**
+ * Token bucket rate limiter to prevent API throttling.
+ * Allows bursts up to maxTokens, then throttles to refillRate per second.
+ */
+class RateLimiter {
+    private tokens: number;
+    private lastRefill: number;
+    private maxTokens: number;
+    private refillRate: number;
+
+    constructor(maxPerSecond: number) {
+        this.maxTokens = maxPerSecond;
+        this.tokens = maxPerSecond;
+        this.refillRate = maxPerSecond;
+        this.lastRefill = Date.now();
+    }
+
+    async acquire(): Promise<void> {
+        this.refill();
+        if (this.tokens < 1) {
+            const waitMs = Math.ceil((1 / this.refillRate) * 1000);
+            await new Promise(r => setTimeout(r, waitMs));
+            return this.acquire();
+        }
+        this.tokens--;
+    }
+
+    private refill(): void {
+        const now = Date.now();
+        const elapsed = (now - this.lastRefill) / 1000;
+        this.tokens = Math.min(this.maxTokens, this.tokens + elapsed * this.refillRate);
+        this.lastRefill = now;
+    }
+}
+
+// Rate limiter: 50 requests/second to Lime API (adjust if needed)
+const limiter = new RateLimiter(50);
+
 function getLimeConfig() {
     return {
         user: process.env.LIME_USER || '',
@@ -18,6 +56,9 @@ export class LimeClient {
      */
     static async sendSMS(mobile: string, message: string) {
         try {
+            // Rate limit to prevent API throttling
+            await limiter.acquire();
+
             // Updated to use correct One-way SMS API endpoint
             // Docs: https://mcpn.us/sendsmsapi?user=...&api_id=...&mobile=...&message=...
 
@@ -139,6 +180,9 @@ export class LimeClient {
      */
     static async checkOptInStatus(mobile: string): Promise<boolean> {
         try {
+            // Rate limit to prevent API throttling
+            await limiter.acquire();
+
             // Updated based on docs: https://mcpn.us/limeApi?ev=optinStatus&...&type=optin
             const config = getLimeConfig();
             const params = new URLSearchParams();

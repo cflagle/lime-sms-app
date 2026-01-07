@@ -51,6 +51,10 @@ model Subscriber {
   trackingEvents  TrackingEvent[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([email])        // Webhook matching
+  @@index([status])       // Active subscriber queries
+  @@index([status, id])   // Cursor pagination
 }
 
 model Segment {
@@ -99,6 +103,10 @@ model SentLog {
   messageId     Int
   brand         String
   sentAt        DateTime  @default(now())
+
+  @@index([subscriberId, sentAt])            // Daily cap checks
+  @@index([subscriberId, messageId, sentAt]) // Cooldown checks
+  @@index([messageId, sentAt])               // Campaign analytics
 }
 
 model TrackingEvent {
@@ -136,6 +144,10 @@ model TrackingEvent {
   messageId           Int?
 
   createdAt           DateTime  @default(now())
+
+  @@index([keyword])      // Message attribution
+  @@index([subscriberId]) // User history
+  @@index([createdAt])    // Time-based queries
 }
 
 model AppConfig {

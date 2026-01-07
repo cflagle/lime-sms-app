@@ -1,4 +1,5 @@
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { AREA_CODE_TIMEZONES } from '../lib/area-codes';
 
