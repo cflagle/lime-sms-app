@@ -9,7 +9,7 @@ export async function POST(request: Request) {
         const { phone, messageId, api_key } = body;
 
         // Auth Check
-        if (api_key !== process.env.APP_PASSWORD && api_key !== 'SpaceCamo123$') {
+        if (!process.env.APP_PASSWORD || api_key !== process.env.APP_PASSWORD) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 

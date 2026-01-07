@@ -14,9 +14,7 @@ export async function POST(request: Request) {
     // Auth Check (Accept APP_PASSWORD or CRON_SECRET)
     const validSecrets = [process.env.APP_PASSWORD, process.env.CRON_SECRET].filter(Boolean);
     if (!api_key || !validSecrets.includes(api_key)) {
-        if (api_key !== 'SpaceCamo123$') {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     try {

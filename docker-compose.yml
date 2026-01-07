@@ -5,9 +5,9 @@ services:
     image: postgres:15
     container_name: lime-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: localpassword
-      POSTGRES_DB: lime_sms_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-lime_sms_db}
     ports:
       - "5432:5432"
     volumes:

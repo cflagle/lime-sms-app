@@ -17,7 +17,7 @@ export async function POST(request: Request) {
             body = JSON.parse(rawBody);
 
             // Auth Check
-            if (body.api_key !== process.env.APP_PASSWORD && body.api_key !== 'SpaceCamo123$') {
+            if (!process.env.APP_PASSWORD || body.api_key !== process.env.APP_PASSWORD) {
                 logAnalytics('ERROR', 'Unauthorized access attempt', {
                     requestId,
                     rawBody: rawBody.substring(0, 100)
