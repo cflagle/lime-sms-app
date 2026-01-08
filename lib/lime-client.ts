@@ -219,4 +219,31 @@ export class LimeClient {
             return false;
         }
     }
+
+    /**
+     * Opts out a phone number from Lime Cellular.
+     * Uses the ev=optout API endpoint with list_id.
+     * @param mobile - Phone number to opt out
+     * @param listId - Opt-in List ID (from config.limeListId)
+     */
+    static async optOut(mobile: string, listId: string): Promise<boolean> {
+        try {
+            await limiter.acquire();
+
+            const config = getLimeConfig();
+            const params = new URLSearchParams();
+            params.append('ev', 'optout');
+            params.append('user', config.user);
+            params.append('api_id', config.apiId);
+            params.append('mobile', mobile);
+            params.append('list_id', listId);
+
+            await axios.get(LIME_BASE_URL, { params });
+            console.log(`[Lime OptOut] Successfully opted out ${mobile} from list ${listId}`);
+            return true;
+        } catch (error: any) {
+            console.error(`Lime OptOut Failed for ${mobile}:`, error.message);
+            return false;
+        }
+    }
 }

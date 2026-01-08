@@ -43,6 +43,10 @@ export async function updateAppConfig(updates: {
     sendTimesWSWD?: string;
     sendTimesTA?: string;
     limeListId?: string;
+    // Provider Controls
+    limeEnabled?: boolean;
+    tracklyEnabled?: boolean;
+    tracklyPhoneNumberId?: string;
     globalDailyCap?: number;
     dryRunMode?: boolean;
 }) {
@@ -63,6 +67,10 @@ export async function updateAppConfig(updates: {
     if (updates.sendTimesTA !== undefined) data.sendTimesTA = updates.sendTimesTA;
 
     if (updates.limeListId != null) data.limeListId = updates.limeListId;
+    // Provider Controls
+    if (updates.limeEnabled !== undefined) data.limeEnabled = updates.limeEnabled;
+    if (updates.tracklyEnabled !== undefined) data.tracklyEnabled = updates.tracklyEnabled;
+    if (updates.tracklyPhoneNumberId != null) data.tracklyPhoneNumberId = updates.tracklyPhoneNumberId;
     if (updates.globalDailyCap != null) data.globalDailyCap = updates.globalDailyCap;
     if (updates.dryRunMode !== undefined) data.dryRunMode = updates.dryRunMode;
 

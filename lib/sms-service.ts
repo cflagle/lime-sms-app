@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { AREA_CODE_TIMEZONES } from './area-codes';
 import { LimeClient } from './lime-client';
+import { TracklyClient } from './trackly-client';
 import { prisma } from './prisma';
 import { getAppConfig } from './config-service';
 import { SegmentationService } from './segmentation-service';
@@ -492,21 +493,21 @@ export class SmsService {
 
         if (!config) config = await getAppConfig();
 
-        // SAFETY CHECK: Verify Opt-in Status with Lime (If NOT Dry Run)
-        // If Dry Run, we optionally skip this to be faster/freer, but usually good to check?
-        // Let's respect Dry Run even for this check if we want to save API calls?
-        // Or if we want to simulate accurately, we should check it. CheckStatus is cheap/free? 
-        // User said "simulate sending". Let's skip the SAFETY check API call too if we want zero API hits.
-        // But the user's main concern is "Safety Cap" preventing "Sending". 
-        // Let's default to performing the check UNLESS in dry run?
-        // Actually, if we are in Dry Run, we might want to test the logic exactly.
-        // But if we want to test 10k numbers without hitting Lime, we should skip 10k API calls.
-
-        let canSend = true;
+        // SAFETY CHECK: Real-time dual-provider opt-in verification with reciprocal opt-out
         if (!config.dryRunMode) {
-            const isOptedIn = await LimeClient.checkOptInStatus(sub.phone);
-            if (!isOptedIn) {
-                console.warn(`[Safety Block] ${sub.phone} is NOT active in Lime. Marking as OPTOUT.`);
+            const optInStatus = await this.checkDualProviderOptIn(sub.phone, config);
+
+            // Update subscriber record with latest provider status
+            await prisma.subscriber.update({
+                where: { id: sub.id },
+                data: {
+                    limeOptedIn: optInStatus.limeOptedIn,
+                    tracklyOptedIn: optInStatus.tracklyOptedIn
+                }
+            });
+
+            if (!optInStatus.canSend) {
+                console.warn(`[Safety Block] ${sub.phone}: ${optInStatus.reason}. Marking as OPTOUT.`);
                 await prisma.subscriber.update({
                     where: { id: sub.id },
                     data: { status: 'OPTOUT' }
@@ -514,7 +515,7 @@ export class SmsService {
                 return;
             }
         } else {
-            console.log(`[Dry Run] Skipping Lime Opt-in Check for ${sub.phone}`);
+            console.log(`[Dry Run] Skipping dual-provider opt-in check for ${sub.phone}`);
         }
 
         const finalContent = msg.content;
@@ -540,6 +541,68 @@ export class SmsService {
     }
 
     /**
+     * Real-time dual-provider opt-in check with RECIPROCAL OPT-OUT.
+     * 
+     * Logic:
+     * - If opted-out of EITHER provider → block send
+     * - If opted-out of Lime → also opt them out of Trackly
+     * - If opted-out of Trackly → also opt them out of Lime
+     * 
+     * @returns canSend=true only if opted-in to BOTH active providers.
+     */
+    private static async checkDualProviderOptIn(
+        phone: string,
+        config: any
+    ): Promise<{
+        canSend: boolean;
+        limeOptedIn: boolean;
+        tracklyOptedIn: boolean;
+        reason?: string;
+    }> {
+        const limeEnabled = config.limeEnabled ?? true;
+        const tracklyEnabled = config.tracklyEnabled ?? false;
+
+        // Check both providers in parallel
+        const [limeStatus, tracklyStatus] = await Promise.all([
+            limeEnabled ? LimeClient.checkOptInStatus(phone) : Promise.resolve(true),
+            tracklyEnabled ? TracklyClient.checkOptInStatus(phone) : Promise.resolve(true)
+        ]);
+
+        let reason: string | undefined;
+
+        // RECIPROCAL OPT-OUT LOGIC
+        // If opted-out of Lime, also opt them out of Trackly
+        if (limeEnabled && !limeStatus && tracklyEnabled) {
+            console.log(`[Reciprocal OptOut] ${phone} opted-out of Lime → opting out of Trackly`);
+            await TracklyClient.optOut(phone, 'CROSS_PROVIDER_SYNC');
+            reason = 'Opted-out of Lime (reciprocal Trackly opt-out triggered)';
+        }
+
+        // If opted-out of Trackly, also opt them out of Lime
+        if (tracklyEnabled && !tracklyStatus && limeEnabled) {
+            console.log(`[Reciprocal OptOut] ${phone} opted-out of Trackly → opting out of Lime`);
+            await LimeClient.optOut(phone, config.limeListId);
+            reason = reason
+                ? 'Opted-out of BOTH providers'
+                : 'Opted-out of Trackly (reciprocal Lime opt-out triggered)';
+        }
+
+        // BLOCK if opted-out of EITHER active provider
+        const canSend = (limeEnabled ? limeStatus : true) && (tracklyEnabled ? tracklyStatus : true);
+
+        if (!canSend && !reason) {
+            reason = !limeStatus ? 'Opted-out of Lime' : 'Opted-out of Trackly';
+        }
+
+        return {
+            canSend,
+            limeOptedIn: limeStatus,
+            tracklyOptedIn: tracklyStatus,
+            reason
+        };
+    }
+
+    /**
      * Sends a direct message to a phone number immediately.
      * Bypasses some scheduling rules but respects Master Switch.
      */
@@ -562,9 +625,26 @@ export class SmsService {
             }
         });
 
-        // COMPLIANCE: Strict Opt-in Check
+        // COMPLIANCE: Strict Opt-in Check (Database status)
         if (!sub || sub.status !== 'ACTIVE') {
             throw new Error("Compliance Block: Subscriber is not ACTIVE or does not exist.");
+        }
+
+        // COMPLIANCE: Real-time dual-provider check with reciprocal opt-out
+        const optInStatus = await this.checkDualProviderOptIn(sub.phone, config);
+
+        // Update cached provider status
+        await prisma.subscriber.update({
+            where: { id: sub.id },
+            data: {
+                limeOptedIn: optInStatus.limeOptedIn,
+                tracklyOptedIn: optInStatus.tracklyOptedIn,
+                ...(optInStatus.canSend ? {} : { status: 'OPTOUT' })
+            }
+        });
+
+        if (!optInStatus.canSend) {
+            throw new Error(`Compliance Block: ${optInStatus.reason}`);
         }
 
         // COMPLIANCE: Safety Checks (Time window, Caps, Gaps)

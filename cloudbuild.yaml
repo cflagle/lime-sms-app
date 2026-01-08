@@ -28,7 +28,7 @@ steps:
       - '--add-cloudsql-instances'
       - 'lime-sms-app:us-central1:lime-db-prod'
       - '--set-secrets'
-      - 'DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest'
+      - 'DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest,TRACKLY_API_KEY=TRACKLY_API_KEY:latest,TRACKLY_PHONE_NUMBER_ID=TRACKLY_PHONE_NUMBER_ID:latest'
       # Secrets should be mounted here in production, but for MVP we assume env vars set in UI
 
   # 4. Deploy Sidecar Worker (Same image, different command) -> Cloud Run
@@ -63,7 +63,7 @@ steps:
       - '--add-cloudsql-instances'
       - 'lime-sms-app:us-central1:lime-db-prod'
       - '--set-secrets'
-      - 'DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest'
+      - 'DATABASE_URL=DATABASE_URL:latest,LIME_USER=LIME_USER:latest,LIME_API_ID=LIME_API_ID:latest,APP_USERNAME=APP_USERNAME:latest,APP_PASSWORD=APP_PASSWORD:latest,TRACKLY_API_KEY=TRACKLY_API_KEY:latest,TRACKLY_PHONE_NUMBER_ID=TRACKLY_PHONE_NUMBER_ID:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/lime-sms-app'
