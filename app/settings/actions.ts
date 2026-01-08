@@ -70,6 +70,11 @@ export async function saveSettings(formData: FormData) {
     const globalDailyCap = parseInt((formData.get('globalDailyCap') as string) || '0') || 0;
     const dryRunMode = formData.get('dryRunMode') === 'on';
 
+    // Provider Toggles
+    const limeEnabled = formData.get('limeEnabled') === 'on';
+    const tracklyEnabled = formData.get('tracklyEnabled') === 'on';
+    const tracklyPhoneNumberId = (formData.get('tracklyPhoneNumberId') as string) || '';
+
     // Manual Sync/Queue Overrides
     const queueMinId = parseInt((formData.get('queueMinId') as string) || '0') || 0;
     const syncSkip = parseInt((formData.get('syncSkip') as string) || '0') || 0;
@@ -117,6 +122,9 @@ export async function saveSettings(formData: FormData) {
         limeListId,
         globalDailyCap,
         dryRunMode,
+        limeEnabled,
+        tracklyEnabled,
+        tracklyPhoneNumberId,
     });
 
     revalidatePath('/settings');
