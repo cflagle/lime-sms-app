@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { phone, messageId, api_key } = body;
+        const { phone, messageId, api_key, provider } = body;
 
         // Auth Check - Accept APP_PASSWORD or hardcoded fallback for Woopra integration
         if (api_key !== process.env.APP_PASSWORD && api_key !== 'SpaceCamo123$') {
@@ -17,10 +17,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'Phone number is required' }, { status: 400 });
         }
 
-        // Basic format check?
-        // if (!/^\d{10,11}$/.test(phone)) ...
+        // Validate provider if specified
+        const validProviders = ['lime', 'trackly'];
+        if (provider && !validProviders.includes(provider.toLowerCase())) {
+            return NextResponse.json({
+                success: false,
+                error: `Invalid provider. Must be one of: ${validProviders.join(', ')}`
+            }, { status: 400 });
+        }
 
-        const result = await SmsService.sendDirectMessage(phone, messageId ? parseInt(messageId) : undefined);
+        const result = await SmsService.sendDirectMessage(
+            phone,
+            messageId ? parseInt(messageId) : undefined,
+            provider?.toLowerCase() as 'lime' | 'trackly' | undefined
+        );
 
         return NextResponse.json(result);
     } catch (error: any) {

@@ -605,13 +605,30 @@ export class SmsService {
     /**
      * Sends a direct message to a phone number immediately.
      * Bypasses some scheduling rules but respects Master Switch.
+     * @param phone - Phone number to send to
+     * @param messageId - Optional specific message ID to send
+     * @param provider - Optional provider override ('lime' or 'trackly'). Defaults to 'lime'.
      */
-    static async sendDirectMessage(phone: string, messageId?: number) {
-        console.log(`Direct Send: Request for ${phone}`);
+    static async sendDirectMessage(phone: string, messageId?: number, provider?: 'lime' | 'trackly') {
+        console.log(`Direct Send: Request for ${phone} via ${provider || 'lime'}`);
 
         const config = await getAppConfig();
         if (!config.sendingEnabled) {
             throw new Error("Sending is globally disabled in Settings.");
+        }
+
+        // Determine which provider to use
+        const selectedProvider = provider || 'lime';
+
+        // Validate the selected provider is enabled
+        const limeEnabled = (config as any).limeEnabled ?? true;
+        const tracklyEnabled = (config as any).tracklyEnabled ?? false;
+
+        if (selectedProvider === 'lime' && !limeEnabled) {
+            throw new Error("Lime provider is disabled in Settings.");
+        }
+        if (selectedProvider === 'trackly' && !tracklyEnabled) {
+            throw new Error("Trackly provider is disabled in Settings.");
         }
 
         // 1. Find subscriber with necessary logs for compliance checking
@@ -676,13 +693,17 @@ export class SmsService {
             throw new Error("No active message found to send.");
         }
 
-        // 3. Send
-        console.log(`Direct Send: Sending message ${msg.id} to ${phone}`);
+        // 3. Send via the selected provider
+        console.log(`Direct Send: Sending message ${msg.id} to ${phone} via ${selectedProvider}`);
 
         // Prepare content (simple pass-through for now, later we can add personalization if sub exists)
         const content = msg.content;
 
-        await LimeClient.sendSMS(phone, content);
+        if (selectedProvider === 'trackly') {
+            await TracklyClient.sendSMS(phone, content);
+        } else {
+            await LimeClient.sendSMS(phone, content);
+        }
 
         // 4. Log (Likely won't have subscriberId if not in DB, so we need to handle that)
         // If sub exists, log it. If not, maybe we should upsert a "Guest" sub? 
@@ -702,6 +723,6 @@ export class SmsService {
             });
         }
 
-        return { success: true, messageId: msg.id };
+        return { success: true, messageId: msg.id, provider: selectedProvider };
     }
 }
