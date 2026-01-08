@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, MessageSquare, Users, FileText, Settings, Activity, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Users, FileText, Settings, Activity, BarChart3, Code } from 'lucide-react';
 
 const navItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const navItems = [
     { name: 'Subscribers', href: '/subscribers', icon: Users },
     { name: 'Logs', href: '/logs', icon: FileText },
     { name: 'Tracking', href: '/tracking', icon: Activity },
+    { name: 'API Docs', href: '/api-docs', icon: Code },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
