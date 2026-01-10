@@ -224,11 +224,9 @@ export class SmsService {
     /**
      * Checks if subscriber is eligible to receive a message RIGHT NOW.
      * Rules: 8am-8pm local time, Max N/day, Engagement Window.
-     * @param options.skipScheduleCheck - If true, bypasses schedule matching (for direct API sends)
      */
-    public static isEligibleToReceive(sub: any, config: any, options?: { skipScheduleCheck?: boolean }): boolean {
+    public static isEligibleToReceive(sub: any, config: any): boolean {
         const now = dayjs();
-        const skipScheduleCheck = options?.skipScheduleCheck ?? false;
 
         // Timezone 
         // If we don't have TZ, try to derive from phone
@@ -298,8 +296,7 @@ export class SmsService {
             ...(config.sendTimesTA || '').split(',')
         ].map(t => t.trim()).filter(Boolean);
 
-        // Skip schedule check for direct API sends (Woopra integration)
-        if (allSchedules.length > 0 && !skipScheduleCheck) {
+        if (allSchedules.length > 0) {
             const currentMinute = hour * 60 + localTime.minute(); // Minutes from midnight
             let matchedSlot = false;
 
@@ -347,8 +344,8 @@ export class SmsService {
             }
 
             if (!matchedSlot) return false;
-        } else if (!skipScheduleCheck) {
-            // Default "Greedy" Pacing (only if NO schedule set and not a direct API send)
+        } else {
+            // Default "Greedy" Pacing (only if NO schedule set)
             // Daily Cap is already checked above.
             // Pacing (1h gap) - fallback if minInterval NOT set?
             // If minInterval IS set, we already checked it above, so we don't need this default 1h gap.
@@ -666,8 +663,8 @@ export class SmsService {
 
         // COMPLIANCE: Safety Checks (Time window, Caps, Gaps)
         // Note: isEligibleToReceive expects 'sentLogs' to be populated.
-        // skipScheduleCheck: true - Direct API sends bypass schedule matching but respect other rules
-        if (!this.isEligibleToReceive(sub, config, { skipScheduleCheck: true })) {
+        // We need to pass config now
+        if (!this.isEligibleToReceive(sub, config)) {
             throw new Error("Compliance Block: Message suppressed by safety rules (Time window, Frequency Cap, or Cooldown).");
         }
 
