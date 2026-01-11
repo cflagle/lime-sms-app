@@ -1,5 +1,6 @@
 import axios from 'axios';
 import xml2js from 'xml2js';
+import sax from 'sax';
 
 const LIME_BASE_URL = 'https://mcpn.us/limeApi';
 
@@ -131,47 +132,91 @@ export class LimeClient {
 
     /**
      * Fetches subscribers from a list using the OptedInNumbers API (XML).
+     * USES STREAMING PARSING to avoid memory leaks with large lists.
      */
-    static async getOptedInNumbers(listId: string) {
-        try {
-            const config = getLimeConfig();
-            const params = new URLSearchParams();
-            params.append('ev', 'optedInNumbers');
-            params.append('user', config.user);
-            params.append('api_id', config.apiId);
-            params.append('optInListId', listId);
+    static async getOptedInNumbers(listId: string): Promise<any[]> {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const config = getLimeConfig();
+                const params = new URLSearchParams();
+                params.append('ev', 'optedInNumbers');
+                params.append('user', config.user);
+                params.append('api_id', config.apiId);
+                params.append('optInListId', listId);
 
-            const response = await axios.get(LIME_BASE_URL, {
-                params,
-                responseType: 'text',
-                timeout: 600000, // 10 minutes (Sync can be slow for large lists)
-                maxBodyLength: Infinity
-            });
+                console.log(`[Lime] Starting streaming fetch for list ${listId}...`);
 
-            // Parse XML response
-            const parser = new xml2js.Parser({ explicitArray: false });
-            const result = await parser.parseStringPromise(response.data);
+                const response = await axios.get(LIME_BASE_URL, {
+                    params,
+                    responseType: 'stream', // <--- CRITITCAL: Stream the response
+                    timeout: 600000,
+                    maxBodyLength: Infinity
+                });
 
-            // Normalize result to array
-            // Structure: <Mobiles><Mobile>...</Mobile></Mobiles>
-            // If one item, xml2js might return object. If multiple, array.
-            // If empty, Mobiles might be empty string or null.
+                const mobiles: any[] = [];
+                const saxStream = sax.createStream(true, {
+                    trim: true,
+                    normalize: true,
+                    lowercase: false
+                });
 
-            if (!result || !result.Mobiles) return [];
+                let currentTag = '';
+                let currentMobile: any = {};
 
-            const mobiles = result.Mobiles.Mobile;
+                saxStream.on('opentag', (node: any) => {
+                    currentTag = node.name;
+                    if (currentTag === 'Mobile') {
+                        currentMobile = {};
+                    }
+                });
 
-            if (Array.isArray(mobiles)) {
-                return mobiles;
-            } else if (mobiles) {
-                return [mobiles];
+                saxStream.on('text', (text: string) => {
+                    if (currentMobile && currentTag) {
+                        // Map fields immediately
+                        // Structure: <Mobile><MobileNumber>...</MobileNumber><FirstName>...
+                        if (currentTag === 'MobileNumber') currentMobile.MobileNumber = text;
+                        else if (currentTag === 'FirstName') currentMobile.FirstName = text;
+                        else if (currentTag === 'LastName') currentMobile.LastName = text;
+                        else if (currentTag === 'Email') currentMobile.Email = text;
+                        else if (currentTag === 'Keyword') currentMobile.Keyword = text;
+                    }
+                });
+
+                saxStream.on('closetag', (tagName: string) => {
+                    if (tagName === 'Mobile') {
+                        // Push finished object
+                        if (currentMobile && currentMobile.MobileNumber) {
+                            mobiles.push(currentMobile);
+                        }
+                        currentMobile = null;
+
+                        // Periodic GC hint / log? 
+                        if (mobiles.length % 5000 === 0) {
+                            // console.log(`[Lime] Streamed ${mobiles.length} records...`);
+                        }
+                    }
+                });
+
+                saxStream.on('error', (e: any) => {
+                    console.error("[Lime] XML Stream Error:", e);
+                    // Don't reject immediately, maybe partial data is okay? 
+                    // But for now let's reject to be safe.
+                    reject(e);
+                });
+
+                saxStream.on('end', () => {
+                    console.log(`[Lime] Streaming complete. Fetched ${mobiles.length} records.`);
+                    resolve(mobiles);
+                });
+
+                // Pipe axios stream to sax
+                response.data.pipe(saxStream);
+
+            } catch (error: any) {
+                console.error('Failed to fetch opted in numbers:', error.message);
+                reject(error);
             }
-
-            return [];
-        } catch (error: any) {
-            console.error('Failed to fetch opted in numbers:', error.message);
-            throw error;
-        }
+        });
     }
 
     /**

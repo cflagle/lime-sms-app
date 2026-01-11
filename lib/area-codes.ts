@@ -30,6 +30,7 @@ export const AREA_CODE_TIMEZONES: Record<string, string> = {
     '236': 'America/Vancouver', // BC
     '239': 'America/New_York', // FL
     '240': 'America/New_York', // MD
+    '246': 'America/Barbados', // BB
     '248': 'America/Detroit',  // MI
     '249': 'America/Toronto',  // ON
     '250': 'America/Vancouver', // BC
