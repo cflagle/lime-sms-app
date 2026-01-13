@@ -26,6 +26,8 @@ model Subscriber {
   
   last_engagement DateTime?
   timezone        String?   // e.g. "America/New_York"
+  carrier         String?   // e.g. "Verizon Wireless"
+  geoLocation     String?   // e.g. "New York, NY"
 
   // Behavioral Tracking
   hasClicked      Boolean   @default(false)
@@ -189,4 +191,16 @@ model AppConfig {
   dryRunMode              Boolean @default(false)
   
   activeSegmentId         Int?    // If set, only send to this segment
+}
+
+// Tracks area codes not in our mapping for later review
+model UnmappedAreaCode {
+  id          Int       @id @default(autoincrement())
+  areaCode    String    @unique
+  count       Int       @default(1)        // How many times we've seen this
+  samplePhone String                       // Example phone with this area code
+  lastSeenAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  
+  @@index([count])  // For sorting by frequency
 }

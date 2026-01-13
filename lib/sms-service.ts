@@ -2,17 +2,50 @@ import { Subscriber, Message, SentLog } from '@prisma/client';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-// @ts-ignore
-import { parsePhoneNumber } from 'libphonenumber-js';
-import { AREA_CODE_TIMEZONES } from './area-codes';
+import parsePhoneNumberFromString from 'libphonenumber-js';
+import { timezones, carrier, geocoder } from 'libphonenumber-geo-carrier';
 import { LimeClient } from './lime-client';
 import { TracklyClient } from './trackly-client';
 import { prisma } from './prisma';
 import { getAppConfig } from './config-service';
 import { SegmentationService } from './segmentation-service';
+import { AREA_CODE_TIMEZONES } from './area-codes';
+import { sampledLog, flushSampledLogs } from './log-sampler';
+import { extractAreaCode, logUnmappedAreaCode, resetUnmappedCache } from './unmapped-area-codes';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+/**
+ * Safely normalizes and parses a phone number.
+ * Handles edge cases that cause libphonenumber-js to throw.
+ */
+function safeParsePhoneNumber(phone: string | number): ReturnType<typeof parsePhoneNumberFromString> | null {
+    try {
+        // Normalize to string and clean
+        let cleaned = String(phone).replace(/\D/g, '');
+
+        // Skip obviously invalid numbers
+        if (!cleaned || cleaned.length < 10) {
+            return null;
+        }
+
+        // Ensure US numbers have leading 1
+        if (cleaned.length === 10) {
+            cleaned = '1' + cleaned;
+        }
+
+        // Only proceed if it looks like a valid length
+        if (cleaned.length !== 11 || !cleaned.startsWith('1')) {
+            return null;
+        }
+
+        return parsePhoneNumberFromString('+' + cleaned, 'US');
+    } catch (e) {
+        // Silently return null on any parse error
+        return null;
+    }
+}
 
 
 export class SmsService {
@@ -34,13 +67,20 @@ export class SmsService {
 
             console.log(`Sync: Found ${leads.length} subscribers on Lime.`);
 
-            // Process in batches of 50 to avoid timeouts and improve speed
-            const BATCH_SIZE = 50;
+            // Reset unmapped area code cache at start of sync
+            resetUnmappedCache();
+
+            // Process in batches of 25 to reduce concurrency pressure
+            const BATCH_SIZE = 25;
             let processed = 0;
 
             for (let i = 0; i < leads.length; i += BATCH_SIZE) {
                 const chunk = leads.slice(i, i + BATCH_SIZE);
-                console.log(`Sync: Processing batch ${i} to ${i + chunk.length}...`);
+
+                // Only log every 500 leads to reduce log volume
+                if (i % 500 === 0 || i === 0) {
+                    console.log(`Sync: Processing batch ${i} to ${i + chunk.length}... (${Math.round(i / leads.length * 100)}% complete)`);
+                }
 
                 await Promise.all(chunk.map(async (lead: any) => {
                     try {
@@ -62,23 +102,44 @@ export class SmsService {
                         const subscribe_ta = keywordRaw.includes('TRADE');
                         const enableFallback = (!subscribe_wswd && !subscribe_ta);
 
-                        // JIT Timezone derivation
-                        let tz = null;
-                        try {
-                            const phoneStr = String(phone).replace(/\D/g, '');
-                            let areaCode = '';
-                            if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
-                                areaCode = phoneStr.substring(1, 4);
-                            } else if (phoneStr.length === 10) {
-                                areaCode = phoneStr.substring(0, 3);
-                            }
+                        // Phone number enrichment using libphonenumber (with safe parsing)
+                        let tz: string | null = null;
+                        let carrierName: string | null = null;
+                        let location: string | null = null;
 
-                            if (areaCode && AREA_CODE_TIMEZONES[areaCode]) {
-                                tz = AREA_CODE_TIMEZONES[areaCode];
-                            } else {
-                                console.warn(`Sync: Could not determine timezone for ${phone} (Area Code: ${areaCode}). Leaving as NULL.`);
+                        // First, try libphonenumber parsing with safe wrapper
+                        const parsedPhone = safeParsePhoneNumber(phone);
+
+                        if (parsedPhone && parsedPhone.isValid()) {
+                            try {
+                                // Wrap each enrichment call individually to prevent cascade failures
+                                const [tzResult, carrierResult, geoResult] = await Promise.all([
+                                    timezones(parsedPhone).catch(() => null),
+                                    carrier(parsedPhone).catch(() => null),
+                                    geocoder(parsedPhone).catch(() => null)
+                                ]);
+
+                                tz = tzResult?.[0] || null;
+                                carrierName = carrierResult || null;
+                                location = geoResult || null;
+                            } catch (e) {
+                                // Individual enrichment failed, will try area code lookup
                             }
-                        } catch (e) { }
+                        }
+
+                        // If timezone still null, try area code lookup from our mapping
+                        if (!tz) {
+                            const areaCode = extractAreaCode(phone);
+                            if (areaCode) {
+                                const mappedTz = AREA_CODE_TIMEZONES[areaCode];
+                                if (mappedTz) {
+                                    tz = mappedTz;
+                                } else {
+                                    // Log unmapped area code for later review
+                                    await logUnmappedAreaCode(String(phone), areaCode);
+                                }
+                            }
+                        }
 
                         await prisma.subscriber.upsert({
                             where: { phone: String(phone) },
@@ -87,6 +148,8 @@ export class SmsService {
                                 subscribe_wswd: subscribe_wswd || enableFallback,
                                 subscribe_ta: subscribe_ta || enableFallback,
                                 timezone: tz,
+                                carrier: carrierName,
+                                geoLocation: location,
                                 firstName: firstName,
                                 lastName: lastName
                             },
@@ -99,22 +162,32 @@ export class SmsService {
                                 status: status,
                                 subscribe_wswd: subscribe_wswd || enableFallback,
                                 subscribe_ta: subscribe_ta || enableFallback,
-                                timezone: tz
+                                timezone: tz,
+                                carrier: carrierName,
+                                geoLocation: location
                             }
                         });
                     } catch (err: any) {
-                        console.error(`Sync: Error processing lead ${lead.MobileNumber}:`, err.message);
+                        // Use sampled logging to reduce volume
+                        sampledLog('lead_processing_error', `Sync: Error processing lead ${lead.MobileNumber}: ${err.message}`, console.error);
                     }
                 }));
 
                 processed += chunk.length;
-                // Periodic logging
-                if (processed % 1000 === 0) {
+
+                // Small delay between batches to prevent overwhelming the system
+                await new Promise(r => setTimeout(r, 100));
+
+                // Periodic logging (every 2000 to reduce volume)
+                if (processed % 2000 === 0) {
                     console.log(`Sync: Processed ${processed}/${leads.length} subscribers.`);
                 }
             }
+            // Flush any batched logs at end of sync
+            flushSampledLogs();
             console.log("Sync: Completed.");
         } catch (e: any) {
+            flushSampledLogs();
             console.error("Sync error:", e.message);
         }
     }
@@ -228,29 +301,12 @@ export class SmsService {
     public static isEligibleToReceive(sub: any, config: any): boolean {
         const now = dayjs();
 
-        // Timezone 
-        // If we don't have TZ, try to derive from phone
-        let tz = sub.timezone;
-        if (!tz && sub.phone) {
-            try {
-                const phoneStr = String(sub.phone).replace(/\D/g, '');
-                let areaCode = '';
-                if (phoneStr.length === 11 && phoneStr.startsWith('1')) {
-                    areaCode = phoneStr.substring(1, 4);
-                } else if (phoneStr.length === 10) {
-                    areaCode = phoneStr.substring(0, 3);
-                }
-
-                if (areaCode && AREA_CODE_TIMEZONES[areaCode]) {
-                    tz = AREA_CODE_TIMEZONES[areaCode];
-                }
-            } catch (e) {
-                // console.error("Error parsing phone for TZ", e);
-            }
-        }
+        // Timezone - use stored timezone from sync
+        // Timezone is populated during syncSubscribers() using libphonenumber-geo-carrier
+        const tz = sub.timezone;
 
         if (!tz) {
-            console.warn(`Eligibility Check: suppressed for ${sub.phone} - NO TIMEZONE AVAILABLE.`);
+            console.warn(`Eligibility Check: suppressed for ${sub.phone} - NO TIMEZONE AVAILABLE. Run sync to populate.`);
             return false;
         }
 

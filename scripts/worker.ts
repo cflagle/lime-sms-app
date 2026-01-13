@@ -11,10 +11,10 @@ console.log('Starting SMS Worker...');
 console.log('DEBUG: Env Check - User:', process.env.LIME_USER, 'API_ID:', process.env.LIME_API_ID ? '***' : 'MISSING');
 
 
-// Sync every 15 minutes
-cron.schedule('*/15 * * * *', async () => {
+// Sync once daily at 1:00 AM (reduces load and log volume significantly)
+cron.schedule('0 1 * * *', async () => {
     try {
-        console.log('[Cron] Starting Subscriber Sync...');
+        console.log('[Cron] Starting Daily Subscriber Sync (1 AM)...');
         await SmsService.syncSubscribers();
         console.log('[Cron] Sync Complete.');
     } catch (e) {
