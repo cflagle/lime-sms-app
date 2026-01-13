@@ -2,8 +2,7 @@ import { Subscriber, Message, SentLog } from '@prisma/client';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import parsePhoneNumberFromString from 'libphonenumber-js';
-import { timezones, carrier, geocoder } from 'libphonenumber-geo-carrier';
+
 import { LimeClient } from './lime-client';
 import { TracklyClient } from './trackly-client';
 import { prisma } from './prisma';
@@ -15,37 +14,6 @@ import { extractAreaCode, logUnmappedAreaCode, resetUnmappedCache } from './unma
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-/**
- * Safely normalizes and parses a phone number.
- * Handles edge cases that cause libphonenumber-js to throw.
- */
-function safeParsePhoneNumber(phone: string | number): ReturnType<typeof parsePhoneNumberFromString> | null {
-    try {
-        // Normalize to string and clean
-        let cleaned = String(phone).replace(/\D/g, '');
-
-        // Skip obviously invalid numbers
-        if (!cleaned || cleaned.length < 10) {
-            return null;
-        }
-
-        // Ensure US numbers have leading 1
-        if (cleaned.length === 10) {
-            cleaned = '1' + cleaned;
-        }
-
-        // Only proceed if it looks like a valid length
-        if (cleaned.length !== 11 || !cleaned.startsWith('1')) {
-            return null;
-        }
-
-        return parsePhoneNumberFromString('+' + cleaned, 'US');
-    } catch (e) {
-        // Silently return null on any parse error
-        return null;
-    }
-}
 
 
 export class SmsService {
@@ -102,42 +70,21 @@ export class SmsService {
                         const subscribe_ta = keywordRaw.includes('TRADE');
                         const enableFallback = (!subscribe_wswd && !subscribe_ta);
 
-                        // Phone number enrichment using libphonenumber (with safe parsing)
+                        // Phone number enrichment - use area code map directly
+                        // (libphonenumber-geo-carrier removed due to Alpine/Docker compatibility)
                         let tz: string | null = null;
-                        let carrierName: string | null = null;
-                        let location: string | null = null;
+                        const carrierName: string | null = null; // No longer enriched
+                        const location: string | null = null; // No longer enriched
 
-                        // First, try libphonenumber parsing with safe wrapper
-                        const parsedPhone = safeParsePhoneNumber(phone);
-
-                        if (parsedPhone && parsedPhone.isValid()) {
-                            try {
-                                // Wrap each enrichment call individually to prevent cascade failures
-                                const [tzResult, carrierResult, geoResult] = await Promise.all([
-                                    timezones(parsedPhone).catch(() => null),
-                                    carrier(parsedPhone).catch(() => null),
-                                    geocoder(parsedPhone).catch(() => null)
-                                ]);
-
-                                tz = tzResult?.[0] || null;
-                                carrierName = carrierResult || null;
-                                location = geoResult || null;
-                            } catch (e) {
-                                // Individual enrichment failed, will try area code lookup
-                            }
-                        }
-
-                        // If timezone still null, try area code lookup from our mapping
-                        if (!tz) {
-                            const areaCode = extractAreaCode(phone);
-                            if (areaCode) {
-                                const mappedTz = AREA_CODE_TIMEZONES[areaCode];
-                                if (mappedTz) {
-                                    tz = mappedTz;
-                                } else {
-                                    // Log unmapped area code for later review
-                                    await logUnmappedAreaCode(String(phone), areaCode);
-                                }
+                        // Use area code map for timezone lookup
+                        const areaCode = extractAreaCode(phone);
+                        if (areaCode) {
+                            const mappedTz = AREA_CODE_TIMEZONES[areaCode];
+                            if (mappedTz) {
+                                tz = mappedTz;
+                            } else {
+                                // Log unmapped area code for later review
+                                await logUnmappedAreaCode(String(phone), areaCode);
                             }
                         }
 
