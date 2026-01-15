@@ -8,6 +8,15 @@ export async function login(prevState: any, formData: FormData) {
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
 
+    // Debug logging (TEMPORARY - remove after debugging)
+    console.log('[Login Debug] Attempting login for:', username);
+    console.log('[Login Debug] APP_USERNAME configured:', !!process.env.APP_USERNAME);
+    console.log('[Login Debug] APP_PASSWORD configured:', !!process.env.APP_PASSWORD);
+    if (process.env.APP_USERNAME) {
+        console.log('[Login Debug] Expected username:', process.env.APP_USERNAME);
+        console.log('[Login Debug] Username match:', process.env.APP_USERNAME === username);
+    }
+
     // Define allowed users from environment variables
     // Users are defined as: APP_USER_1=username:password, APP_USER_2=username:password, etc.
     const validUsers: { username: string; password: string }[] = [];
@@ -28,7 +37,11 @@ export async function login(prevState: any, formData: FormData) {
         });
     }
 
+    console.log('[Login Debug] Number of valid users:', validUsers.length);
+
     const isValid = validUsers.length > 0 && validUsers.some(user => user.username === username && user.password === password);
+
+    console.log('[Login Debug] Authentication result:', isValid);
 
     if (isValid) {
         (await cookies()).set(AUTH_COOKIE_NAME, 'authenticated', {
