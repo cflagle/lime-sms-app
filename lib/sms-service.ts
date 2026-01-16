@@ -144,7 +144,7 @@ export class SmsService {
      * Main processing loop.
      */
     static async processQueue() {
-        console.log("Processing SMS Queue...");
+        // console.log("Processing SMS Queue...");
 
         const config = await getAppConfig();
 
@@ -171,7 +171,7 @@ export class SmsService {
         const BATCH_SIZE = 500;
 
         while (true) {
-            console.log(`Processing Queue: Fetching batch of ${BATCH_SIZE} from ID > ${lastId}`);
+            // console.log(`Processing Queue: Fetching batch of ${BATCH_SIZE} from ID > ${lastId}`);
 
             const subscribers = await prisma.subscriber.findMany({
                 where: {

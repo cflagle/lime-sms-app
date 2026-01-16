@@ -25,9 +25,9 @@ cron.schedule('0 1 * * *', async () => {
 // Process Queue every minute
 cron.schedule('* * * * *', async () => {
     try {
-        console.log('[Cron] Processing Queue...');
+        // console.log('[Cron] Processing Queue...'); // Quieted for Log Quota
         await SmsService.processQueue();
-        console.log('[Cron] Queue Processing Complete.');
+        // console.log('[Cron] Queue Processing Complete.');
     } catch (e) {
         console.error('[Cron] Queue Processing Failed:', e);
     }
