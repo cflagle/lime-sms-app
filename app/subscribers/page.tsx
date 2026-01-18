@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +71,7 @@ export default async function SubscribersPage() {
                                     </div>
                                 </td>
                                 <td className="p-4 text-slate-500 text-sm">
-                                    {sub.last_engagement ? dayjs(sub.last_engagement).format('MMM D, YYYY') : 'Never'}
+                                    {sub.last_engagement ? dayjs(sub.last_engagement).tz('America/New_York').format('MMM D, YYYY') : 'Never'}
                                 </td>
                             </tr>
                         ))}

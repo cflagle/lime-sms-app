@@ -1,6 +1,11 @@
 import { Users, MessageSquare, Activity, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const dynamic = 'force-dynamic';
 
@@ -184,7 +189,7 @@ export default async function Home() {
                 {stats.recentLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-800/30">
                     <td className="py-3 pl-2 font-mono text-slate-500">
-                      {dayjs(log.sentAt).format('MMM D, h:mm A')}
+                      {dayjs(log.sentAt).tz('America/New_York').format('MMM D, h:mm A')}
                     </td>
                     <td className="py-3 text-slate-300">
                       {log.subscriber.name || log.subscriber.phone} <span className="text-slate-600 text-xs">({log.subscriber.phone})</span>

@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +45,7 @@ export default async function LogsPage() {
                         {logs.map(log => (
                             <tr key={log.id} className="hover:bg-slate-800/50 transition-colors">
                                 <td className="p-4 text-slate-500 text-sm">
-                                    {dayjs(log.sentAt).format('MMM D, h:mm A')}
+                                    {dayjs(log.sentAt).tz('America/New_York').format('MMM D, h:mm A')}
                                 </td>
                                 <td className="p-4 font-mono">{log.subscriber?.phone || log.subscriberId}</td>
                                 <td className="p-4">
