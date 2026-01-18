@@ -37,6 +37,7 @@ export default async function LogsPage() {
                         <tr>
                             <th className="p-4">Time</th>
                             <th className="p-4">To</th>
+                            <th className="p-4">Timezone</th>
                             <th className="p-4">Brand</th>
                             <th className="p-4">Content</th>
                         </tr>
@@ -48,6 +49,9 @@ export default async function LogsPage() {
                                     {dayjs(log.sentAt).tz('America/New_York').format('MMM D, h:mm A')}
                                 </td>
                                 <td className="p-4 font-mono">{log.subscriber?.phone || log.subscriberId}</td>
+                                <td className="p-4 text-xs text-slate-400">
+                                    {log.subscriber?.timezone || <span className="text-slate-600">no timezone</span>}
+                                </td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded text-xs font-bold ${log.brand === 'WSWD' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
                                         {log.brand}

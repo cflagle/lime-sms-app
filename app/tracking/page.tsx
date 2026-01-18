@@ -85,6 +85,7 @@ export default async function TrackingPage() {
                             <th className="p-4">Type</th>
                             <th className="p-4">Message</th>
                             <th className="p-4">Subscriber</th>
+                            <th className="p-4">Timezone</th>
                             <th className="p-4">Revenue</th>
                             <th className="p-4">Keyword</th>
                         </tr>
@@ -127,6 +128,9 @@ export default async function TrackingPage() {
                                     ) : (
                                         <span className="text-slate-600">—</span>
                                     )}
+                                </td>
+                                <td className="p-4 text-xs text-slate-400">
+                                    {event.subscriber?.timezone || <span className="text-slate-600">no timezone</span>}
                                 </td>
                                 <td className="p-4 text-sm">
                                     {event.revenue ? (
